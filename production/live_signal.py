@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-D0-Addons
 """Read-only handoff of confirmed strategy targets to a broker-side program."""
 from datetime import date
 from decimal import Decimal, InvalidOperation

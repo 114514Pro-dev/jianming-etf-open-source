@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-D0-Addons
 """Read-only D0 connection check, loaded as an Eastmoney Quant Python strategy."""
 from decimal import Decimal, InvalidOperation
 from http.cookiejar import CookieJar

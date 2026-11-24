@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LicenseRef-D0-Addons
 import json
 import threading
 import unittest
