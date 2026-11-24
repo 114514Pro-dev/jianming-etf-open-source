@@ -1,0 +1,12 @@
+{
+  "top5_engine.py": "a8742db181429d686f8129d33b27df90391519f0ae4172e5068312af0290b1d3",
+  "top5_indicators.py": "695f979415b3653a55fc055eeba620e55db13b27591ed0bfb0369a5ca16084c6",
+  "bankgold_indicators.py": "695f979415b3653a55fc055eeba620e55db13b27591ed0bfb0369a5ca16084c6",
+  "portfolio_account.py": "fee8450ffc62b22388eeaba459e61744c103696b566be08605ecc3e445cf4e59",
+  "bear_gold_kernel.py": "29d8fbb4ff16b31ca85ec3fa502355e3207223775de85dbf09d349388791d25d",
+  "data\\seven\\calendar.json": "4e610df93063675814b3d5a5df21d8afe07a4a07ad76fac1142f34b0a92a9f54",
+  "data\\seven\\catalog.json": "72f01970ab10d1b88814cf9029a9a38277ac8c3dca1b881cd3a491ad5932d040",
+  "data\\seven\\daily.csv": "6bd13a609916090d9bd4812224325994de660825219ec9accb4aa02df551ccb6",
+  "data\\seven\\hourly.csv": "81e539793156cfa773d36ee152fe9f601506033e21e7f139156f79223eadb916",
+  "data\\seven\\market.json": "71277a599c9db10e68c1b437de4636a94422fc301f282accfbbbd6ade994b007"
+}

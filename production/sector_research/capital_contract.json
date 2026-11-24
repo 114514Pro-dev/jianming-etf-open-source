@@ -1,0 +1,191 @@
+{
+  "schema": "sector-capital.contract.v1",
+  "version": "1.0.0",
+  "name": "资金目标、持仓预演与历史模拟",
+  "scope": "只生成收盘目标、显式报价假设下的数量预演，以及历史模拟；不下真实订单，不写既有简明ETF账户，不创建自动模拟账户。",
+  "interface": {
+    "constructor": "CapitalResearch(env, opportunity)",
+    "models": "models() -> {schema,models,scenarios,default_start,data_as_of,costs,warnings}",
+    "preview": "preview(model,cash,positions,as_of=None,execution_prices=None,sleeve_cash=None,initialized=True,entitlements=None,receivables=None)",
+    "backtest": "backtest(model,start,end,capital,scenario='primary')"
+  },
+  "models": [
+    {
+      "id": "HOLD",
+      "name": "十板块独立持有",
+      "shared_capital": false
+    },
+    {
+      "id": "INDEPENDENT_TRIX",
+      "name": "十板块独立TRIX",
+      "shared_capital": false
+    },
+    {
+      "id": "SCORE",
+      "name": "原价量评分共享资金",
+      "shared_capital": true
+    },
+    {
+      "id": "B_SCORE",
+      "name": "减少小额调仓的评分配置B",
+      "shared_capital": true
+    },
+    {
+      "id": "B_EQUAL",
+      "name": "同目标总仓位等额配置B",
+      "shared_capital": true
+    },
+    {
+      "id": "INDEPENDENT_ENTRY_GATE",
+      "name": "独立TRIX加大盘入场过滤",
+      "shared_capital": false
+    },
+    {
+      "id": "INDEPENDENT_FULL_GATE",
+      "name": "独立TRIX加大盘完整过滤",
+      "shared_capital": false
+    }
+  ],
+  "input": {
+    "model": "上方模型id",
+    "cash": "决策日D收盘结算后人民币现金，非负、至多两位小数；独立模型等于10份sleeve_cash之和，不重复加总",
+    "positions": "{sh512800:1000,...}，固定十码持仓份数，非负100份整数倍；省略码视为零，未知代码拒绝",
+    "sleeve_cash": "独立模型必填{十个代码:各袖套非负现金}，十码齐全且金额之和等于cash；共享模型不使用",
+    "initialized": "true为按已有模型状态预演；false为初始化复核，仍保留输入持仓与现金，不重置。HOLD从不自行卖出，因此已有仓位保持、零仓视为初次买入尚未成功并继续尝试；不把外部卖空后的手工状态冒充原HOLD账本续接。",
+    "execution_prices": "null只给目标；字符串last_close表示用户明确选择以最近收盘价作假设报价估算；或{code:{price:正数,tradable:true/false}}。映射中缺失码视为缺少报价。假设价格绝不是未来真实开盘价。",
+    "entitlements": "{code:{已知分红event_id:登记日份额}}。None表示未提供，明确{}表示声明无未结登记权益；若已知行动所需权益不清楚，返回阻断原因，不静默按零消权。D恰为登记日时由D收盘持仓确定。",
+    "receivables": "{code:{已知分红event_id:尚未到账金额}}，单位人民币元，最多两位小数（精确到分）。None表示未提供，明确{}声明无应收；已知ex_date<=D<pay_date且未提供应收状态时，阻断依赖净值的预演。",
+    "as_of": "D为第一模块可选且已完成的实际指数交易日；执行日为下一市场日。仅D和此前信息决定目标。",
+    "capital_backtest": "历史本金为正的人民币元、至多两位小数；独立模型须可按分精确等分10份（本金为0.10元整数倍）。",
+    "numeric_limits": "输入金额至多1万亿元、份数至多1万亿份；手工假设价格须在0.001至10亿元之间。超范围或无法按人民币分表示的值明确拒绝，不产生交易数量。"
+  },
+  "preview_schema": {
+    "schema": "sector-capital.preview.v1",
+    "model": "B_SCORE",
+    "decision_date": "2026-09-30",
+    "execution_date": "2026-10-08",
+    "mode": "target_only 或 what_if",
+    "quote_mode": "none 或 last_close_assumption 或 manual_assumption",
+    "execution_verified": false,
+    "ready": true,
+    "blocked_reasons": [],
+    "account": {
+      "cash": 100000,
+      "security_value": 0,
+      "dividend_receivable": 0,
+      "equity": 100000,
+      "positions": {},
+      "sleeve_cash": null,
+      "initialized": false
+    },
+    "market_gate": {
+      "ready": true,
+      "allowed": false,
+      "close": "number|null",
+      "ma120": "number|null"
+    },
+    "targets": [
+      {
+        "code": "sh512800",
+        "name": "银行",
+        "eligible": "bool|null",
+        "score": "number|null",
+        "current_shares": 0,
+        "current_weight": 0,
+        "target_weight": 0,
+        "target_value": 0,
+        "action_type": "string",
+        "review_required": true,
+        "weight_gap": 0,
+        "gate_applies": false
+      }
+    ],
+    "target_total_weight": "number|null",
+    "trigger_reason": [],
+    "simulation": null,
+    "freshness": "沿用市场模块",
+    "warnings": [],
+    "assumptions": []
+  },
+  "simulation_schema": {
+    "trades": "[{date,code,side,shares,shares_before,shares_after,decision_date,price,notional,commission,slippage_cost,...}]",
+    "actions": "{code:{目标字段,desired_qty,budgeted_qty,budgeted_notional,executed_qty,band_pass,notional_pass,rejection_reason,...}}；字段按对应路径存在，不将缺失视为0",
+    "cash_after_open": "人民币元",
+    "positions_after_open": "{code:shares}",
+    "sleeve_cash_after_open": "独立模型十码人民币元；共享为null",
+    "receivables_after_open": "{code:{event_id:人民币元}}",
+    "corporate_events": [],
+    "buy_allocations": "{code:{desired_qty,desired_cost,allocated_budget,budgeted_qty,qty,price}}",
+    "commission": "人民币元",
+    "slippage_cost": "人民币元"
+  },
+  "backtest_schema": {
+    "schema": "sector-capital.backtest.v1",
+    "model": "B_SCORE",
+    "start": "2024-04-01",
+    "end": "2026-09-30",
+    "capital": 100000,
+    "scenario": "primary",
+    "result": "原完整portfolio及独立模型sleeves；含curve/trades/corporate_events/decisions/parameters/指标等，不改旧账本经济字段",
+    "provenance": "{inputs,engines,feature_outcome_labels_used:false,probability_used:false}",
+    "warnings": []
+  },
+  "costs": {
+    "commission_rate": 0.0003,
+    "minimum_commission": 5,
+    "slippage_rate": 0.0002,
+    "minimum_slippage_ticks": 1
+  },
+  "scenarios": [
+    {
+      "id": "primary",
+      "overrides": {}
+    },
+    {
+      "id": "double_cost",
+      "overrides": {
+        "commission_rate": 0.0006,
+        "minimum_commission": 10,
+        "slippage_rate": 0.0004,
+        "minimum_slippage_ticks": 2
+      }
+    },
+    {
+      "id": "extra_execution_day",
+      "overrides": {
+        "delay": 2
+      }
+    },
+    {
+      "id": "no_minimum_commission",
+      "overrides": {
+        "minimum_commission": 0
+      }
+    }
+  ],
+  "rules": {
+    "signal": "TRIX12/9原45bar预热后金死叉持久状态；等值保持，下一市场日执行。",
+    "score": "复用原features_model与portfolio allocation：趋势120、相对强弱60、签名日成交额20、波动60四项横截面秩各25%；不使用模块二观察分组代替评分，不训练上涨概率，不计算未来收益标签。",
+    "SCORE": "沿用原共享资金引擎的初始化、周五、有效资格集合变化触发与原目标权重；先卖后买，买单含费需求统一按现金比例预算，整手向下取整，不循环分配余款。",
+    "B_SCORE": "沿用原B评分引擎：初始化及周五全仓复核；其余日仅无资格退出和资格新进现金建仓，有效旧仓不动；周五已有有效持仓的可选增减同时满足决策日权重偏离目标>=2个百分点与最终单边成交金额>=5000元。新建、初始化与强制退出豁免；买单按预算后5000元再次筛选且不重新分配取消余额。",
+    "B_EQUAL": "与B_SCORE使用同一总目标仓位，资格池内等额；执行限制与B_SCORE相同。",
+    "independent": "HOLD、独立TRIX与两种大盘过滤均为10个隔离现金袖套；不跨ETF挪用现金，已有合格持仓不持续补仓。",
+    "gate": "只在独立TRIX上复用原市场过滤引擎。上证综指之外的原CSI_ALL_PRICE(000985)收盘严格>MA120方为允许，等于不允许。ENTRY_GATE仅零持仓入场受限，已持按TRIX管理；FULL_GATE关闭时退出，重开且TRIX合格时再入。不是SCORE或B的附加过滤。",
+    "company_actions": "复用原登记日持仓、除息日确认应收、到账日现金、拆分和费用处理；实际历史核验范围内保留全部事件。预演只到次日开盘成交后，不含执行日收盘后股息到账或登记。",
+    "missing": "原始缺价不假成交；输入权益不全或净值不可知则null并阻断依赖预演；下一日超过已核验行动覆盖时只允许明确假设无新增行动的what_if，execution_verified始终false。"
+  },
+  "intervals": {
+    "default_start": "2024-04-01",
+    "independent_earliest": "2022-04-01",
+    "shared_earliest": "2022-07-12，额外延迟还需向后满足足够决策行",
+    "end": "最新已完成且公司行动覆盖的核验日期，原种子2026-09-30",
+    "comparison": "模型对照必须同起止日、本金、成本、执行延迟和期末结算口径；不同起点不直接排名。"
+  },
+  "limitations": [
+    "历史复现属于已有样本的研究，不构成真正未见样本外验证。",
+    "没有真实订单、证券账户接入或自动资金账户推进；预演不证明手工输入状态来自该策略。",
+    "收益、波动与回撤不意味着未来概率；不添加胜率总分或优化参数。",
+    "种子历史的公司行动证据边界继承原来源，不扩大为基金全生命周期无遗漏证明。",
+    "模拟有固定佣金、滑点、整手与原流动性约束，不能替代真实盘口和成交验证。"
+  ]
+}

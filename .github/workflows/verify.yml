@@ -1,0 +1,68 @@
+name: Verify maintained application
+
+on:
+  pull_request:
+    paths:
+      - 'production/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/verify.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'production/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/verify.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build isolated locked-dependency test image
+        run: docker build --build-arg GIT_REVISION="$GITHUB_SHA" --build-arg SOURCE_ARCHIVE_SHA=test-only -t jianming-etf-verify -f production/Dockerfile production
+      - name: Run Linux regression suite without network or application data
+        run: >-
+          docker run --rm --network none --memory 5g --memory-swap 5g
+          --cpus 2 --pids-limit 192
+          --mount type=bind,src="$PWD",dst=/workspace,readonly
+          --tmpfs /tmp:rw,nosuid,mode=1777,size=2g
+          -e PYTHONDONTWRITEBYTECODE=1 -e SIMPLE_ETF_HOME=/tmp/synthetic-etf-home
+          -w /workspace --entrypoint python jianming-etf-verify
+          -m unittest discover -s tests -v
+      - name: Check existing browser projection contracts
+        run: |
+          node scripts/check_d0_trade_logic.cjs
+          node scripts/check_d0_comparison_frontend.cjs
+          node scripts/check_account_reads.cjs
+      - name: Verify account snapshots with public seeds and synthetic accounts
+        run: >-
+          docker run --rm --network none --memory 5g --memory-swap 5g
+          --cpus 2 --pids-limit 192
+          --mount type=bind,src="$PWD",dst=/workspace,readonly
+          --tmpfs /tmp:rw,nosuid,mode=1777,size=2g
+          -e PYTHONDONTWRITEBYTECODE=1 -e SIMPLE_ETF_HOME=/tmp/synthetic-etf-home
+          -w /workspace --entrypoint python jianming-etf-verify
+          scripts/account_cache_smoke.py --timeout 600
+      - name: Prepare disposable browser test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/etf-ui" --ignore-scripts --no-package-lock playwright@1.62.1
+          node "$RUNNER_TEMP/etf-ui/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Check strategy switching with synthetic accounts
+        env:
+          NODE_PATH: ${{ runner.temp }}/etf-ui/node_modules
+          ETF_UI_OUTPUT: ${{ runner.temp }}/etf-ui-results
+        run: |
+          node scripts/check_d0i_ww_frontend.cjs

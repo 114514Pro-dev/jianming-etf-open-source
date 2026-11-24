@@ -1,0 +1,1121 @@
+{
+  "schema_version": "1.0",
+  "as_of": "2026-10-05",
+  "requested_window": {
+    "warmup_start": "2021-01-01",
+    "performance_start": "2022-04-01",
+    "through": "2026-09-30"
+  },
+  "status": "Positive action fields verified at explicit source-authority tiers; official period-negative coverage is partial.",
+  "summary": {
+    "assets": 10,
+    "splits": 5,
+    "cash_dividends": 10,
+    "warmup_only_events": 3,
+    "performance_period_events": 12,
+    "official_host_original_positive_events": 14,
+    "positive_events_with_third_party_host_boundary": 1,
+    "full_history_official_negative_certification": false
+  },
+  "assets": [
+    {
+      "code": "512800",
+      "name": "华宝中证银行ETF",
+      "splits": [
+        {
+          "event_id": "512800_split_2025-07-07",
+          "code": "512800",
+          "event_type": "split",
+          "announcement_date": "2025-07-01",
+          "record_date": "2025-07-04",
+          "ex_date": "2025-07-07",
+          "ratio": 2,
+          "ratio_definition": "new_shares / old_shares",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512800_BCA04",
+          "source_url": "https://www.fsfund.com/webimages/upload2012/2025/06/30/cb0fbc1a-dd92-4905-8350-4475163d457b/%E5%8D%8E%E5%AE%9D%E5%9F%BA%E9%87%91%E7%AE%A1%E7%90%86%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E5%85%B3%E4%BA%8E%E5%8D%8E%E5%AE%9D%E4%B8%AD%E8%AF%81%E9%93%B6%E8%A1%8C%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%AE%9E%E6%96%BD%E5%9F%BA%E9%87%91%E4%BB%BD%E9%A2%9D%E6%8B%86%E5%88%86%E5%B9%B6%E8%B0%83%E6%95%B4%E6%9C%80%E5%B0%8F%E7%94%B3%E8%B4%AD%E3%80%81%E8%B5%8E%E5%9B%9E%E5%8D%95%E4%BD%8D%E5%8F%8A%E7%9B%B8%E5%85%B3%E4%B8%9A%E5%8A%A1%E5%AE%89%E6%8E%92%E7%9A%84%E5%85%AC%E5%91%8A.pdf",
+          "receipt_path": "research\\actions\\receipts\\512800_BCA04.pdf",
+          "receipt_sha256": "de55623bbe0c234f06f69ee040480058587c98c3f7d3bb5e78e9740d2d09eaa2",
+          "supporting_sources": [
+            {
+              "source_id": "512800_BCA05",
+              "source_url": "https://www.fsfund.com/webimages/upload2012/2025/07/04/ebba9b55-acea-4b33-9786-65013319b8f6/%E5%8D%8E%E5%AE%9D%E5%9F%BA%E9%87%91%E7%AE%A1%E7%90%86%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E5%85%B3%E4%BA%8E%E5%8D%8E%E5%AE%9D%E4%B8%AD%E8%AF%81%E9%93%B6%E8%A1%8C%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%9F%BA%E9%87%91%E4%BB%BD%E9%A2%9D%E6%8B%86%E5%88%86%E7%BB%93%E6%9E%9C%E7%9A%84%E5%85%AC%E5%91%8A.pdf",
+              "receipt_path": "research\\actions\\receipts\\512800_BCA05.pdf",
+              "receipt_sha256": "1bf3b02b93e99530b861b62fbc1ee27e4e21cd5c76e24e61691b182f127912b9"
+            }
+          ],
+          "period": "performance_period"
+        }
+      ],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2020-01-01",
+            "through": "2022-12-31",
+            "source_id": "512800_BCA03",
+            "section": "3.3",
+            "official_host": false,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          },
+          {
+            "from": "2023-01-01",
+            "through": "2025-12-31",
+            "source_id": "512800_BCA01",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "2026-01-01 through 2026-09-30: supplier no events found; not official complete negative proof."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512800.html",
+          "raw_file": "eastmoney_actions_sh512800.html",
+          "sha256": "49bf72c002c6150a65933b249b032ed34c42c43df031ce848b109a5d8f0e6ff7",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 1,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "512880",
+      "name": "国泰中证全指证券公司ETF",
+      "splits": [],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2020-01-01",
+            "through": "2022-12-31",
+            "source_id": "512880_annual2022_official",
+            "section": "3.3",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          },
+          {
+            "from": "2023-01-01",
+            "through": "2025-12-31",
+            "source_id": "512880_annual2025_official",
+            "section": "3.3",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          },
+          {
+            "from": "2026-01-01",
+            "through": "2026-06-30",
+            "source_id": "512880_interim2026_official",
+            "section": "6.4.11",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "issuer_history_snapshot": {
+          "source_id": "512880_official_product",
+          "as_observed": "2026-10-05",
+          "dividend_history": "Table empty, with unresolved templates elsewhere on page.",
+          "scope_limit": "Empty dynamic table is NOT affirmative proof of no historic distributions; not counted as verified coverage."
+        },
+        "uncovered_cash_absence_periods": [
+          "2026-07-01 through 2026-09-30: supplier no events, not official interval-negative proof."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512880.html",
+          "raw_file": "eastmoney_actions_sh512880.html",
+          "sha256": "b4fa5e1381efcbe8a31598aff4e463d21ce870a59a186a616f92c5186b59bd9f",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "159928",
+      "name": "汇添富中证主要消费ETF",
+      "splits": [
+        {
+          "event_id": "159928_split_2021-06-25",
+          "code": "159928",
+          "event_type": "split",
+          "announcement_date": "2021-06-21",
+          "record_date": "2021-06-24",
+          "ex_date": "2021-06-25",
+          "ratio": 4,
+          "ratio_definition": "new_shares / old_shares",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "159928_split_plan_20210621",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2021-06-21/1210290733.PDF",
+          "receipt_path": "research\\actions\\receipts\\159928_split_plan_20210621.pdf",
+          "receipt_sha256": "30abd64f3b37dbe84c59b583b7200e212a221479ce5099f966a20958b57ab75a",
+          "supporting_sources": [
+            {
+              "source_id": "159928_split_result_20210625",
+              "source_url": "https://www.99fund.com/cgi-bin/news/Article?articleId=12680293&function=print",
+              "receipt_path": "research\\actions\\receipts\\159928_split_result_20210625.html",
+              "receipt_sha256": "368c68f8423ecb212d54a4ff3c3d92db08adc93d7a0693677f11263a5c32cf82"
+            }
+          ],
+          "period": "warmup_only"
+        }
+      ],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "issuer_history_snapshot": {
+          "source_id": "159928_official_nav",
+          "as_observed": "2026-10-05",
+          "latest_nav_date_on_page": "2026-09-30",
+          "dividend_history": "Explicit no dividend records in displayed history table.",
+          "split_history": "One split on 2021-06-24, ratio 4.",
+          "scope_limit": "Current issuer history table, not an immutable year-by-year archive. The source does not give an explicit historical completeness warranty."
+        },
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_159928.html",
+          "raw_file": "eastmoney_actions_sz159928.html",
+          "sha256": "7e59bb4ba86339676b4c3a3d058de85769c6fd8e4883c530c481b26a9804699c",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 1,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "159929",
+      "name": "汇添富中证医药卫生ETF",
+      "splits": [],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "issuer_history_snapshot": {
+          "source_id": "159929_official_nav",
+          "as_observed": "2026-10-05",
+          "latest_nav_date_on_page": "2026-09-30",
+          "dividend_history": "Explicit no dividend records in displayed history table.",
+          "split_history": "Explicit no split records in displayed history table.",
+          "scope_limit": "Current issuer history table, not an immutable year-by-year archive. The source does not give an explicit historical completeness warranty."
+        },
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_159929.html",
+          "raw_file": "eastmoney_actions_sz159929.html",
+          "sha256": "713db4553a0a4ef2896a23066ed82da9ecfbc2d7600adad62225dcdad5cc8446",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "512480",
+      "name": "国联安中证全指半导体产品与设备ETF",
+      "splits": [
+        {
+          "event_id": "512480_split_2021-03-29",
+          "code": "512480",
+          "event_type": "split",
+          "announcement_date": "2021-03-24",
+          "record_date": "2021-03-25",
+          "ex_date": "2021-03-29",
+          "ratio": 2,
+          "ratio_definition": "new_shares / old_shares",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512480_split_plan_20210324",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2021-03-24/1209439486.PDF",
+          "receipt_path": "research\\actions\\receipts\\512480_split_plan_20210324.pdf",
+          "receipt_sha256": "684abaeb5c4e4070e063746401a8b8d2cacf87db8d250f4d56da9d1a414aad19",
+          "supporting_sources": [
+            {
+              "source_id": "512480_split_result_20210329",
+              "source_url": "https://static.cninfo.com.cn/finalpage/2021-03-29/1209471570.PDF",
+              "receipt_path": "research\\actions\\receipts\\512480_split_result_20210329.pdf",
+              "receipt_sha256": "b5af3e59ba9684229ab3e5df37313876e56864fec3b438e62249c28e8271ca60"
+            }
+          ],
+          "split_processing_date": "2021-03-26",
+          "suspended_market_dates": [
+            "2021-03-26"
+          ],
+          "ex_date_semantics": "First resumed tradable session on the split-adjusted basis. Processing was 2021-03-26 while suspended; record holdings were 2021-03-25. Announcement is the second reminder; original plan was published 2021-03-17.",
+          "period": "warmup_only"
+        },
+        {
+          "event_id": "512480_split_2026-07-03",
+          "code": "512480",
+          "event_type": "split",
+          "announcement_date": "2026-06-29",
+          "record_date": "2026-07-02",
+          "ex_date": "2026-07-03",
+          "ratio": 2,
+          "ratio_definition": "new_shares / old_shares",
+          "verification_tier": "issuer_authored_original_pdf_on_third_party_host_plus_exchange_support",
+          "source_id": "512480_split_plan_20260629_mirror",
+          "source_url": "https://pdf.dfcfw.com/pdf/H2_AN202606291826521348_1.pdf",
+          "receipt_path": "research\\actions\\receipts\\512480_split_plan_20260629_mirror.pdf",
+          "receipt_sha256": "5d2e131964cb472b59fbc2765577ac4382957d6ef4ef101e237097cf42b277c3",
+          "supporting_sources": [
+            {
+              "source_id": "512480_split_result_20260703_mirror",
+              "source_url": "https://pdf.dfcfw.com/pdf/H2_AN202607031826683755_1.pdf",
+              "receipt_path": "research\\actions\\receipts\\512480_split_result_20260703_mirror.pdf",
+              "receipt_sha256": "efb996ece1a50b24d11eb9c5ffc60b52ea4c06a48ad016bf52ab0aaae3af7ad5"
+            },
+            {
+              "source_id": "512480_exchange_confirmation_20260702",
+              "source_url": "https://www.sse.com.cn/assortment/options/mnjyzxxx/c/c_20260703_10824231.shtml",
+              "receipt_path": "research\\actions\\receipts\\512480_exchange_confirmation_20260702.html",
+              "receipt_sha256": "55f191b61a5a93316b245ba2084bf1e5b114eb7a15992089f27d9d562601732c"
+            }
+          ],
+          "note": "Both plan and result PDFs are issuer-authored original disclosures downloaded from an Eastmoney mirror. Official SSE options-simulation notice independently identifies 2026-07-03 as underlying fund ex-date, but is supporting evidence, not the original fund announcement. Official-host original fund PDF was not retrieved.",
+          "period": "performance_period"
+        }
+      ],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2023-01-01",
+            "through": "2025-12-31",
+            "source_id": "512480_annual2025_official",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "2021-01-01 through 2022-12-31 and 2026-01-01 through 2026-09-30: no supplier events found; not official complete negative proof."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512480.html",
+          "raw_file": "eastmoney_actions_sh512480.html",
+          "sha256": "25b75bfaea9e3ffe5e039ed2d89d1e0b52921b6b7428bd2fe1dcd809f586da68",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 2,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "512720",
+      "name": "国泰中证计算机主题ETF",
+      "splits": [],
+      "dividends": [
+        {
+          "event_id": "512720_dividend_2023-09-25",
+          "code": "512720",
+          "event_type": "cash_dividend",
+          "announcement_date": "2023-09-21",
+          "record_date": "2023-09-22",
+          "ex_date": "2023-09-25",
+          "pay_date": "2023-09-28",
+          "cash_per_share": 0.048,
+          "declared_cash_per_10_original_shares": 0.48,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512720_cash_20230921",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-09-21/512720_20230921_7RNP.pdf",
+          "receipt_path": "research\\actions\\receipts\\512720_cash_20230921.pdf",
+          "receipt_sha256": "eecbb4bfaf902617c8a500a2147c737177fb020e0acceb84e1bdea7bc9988855",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "512720_dividend_2023-12-25",
+          "code": "512720",
+          "event_type": "cash_dividend",
+          "announcement_date": "2023-12-21",
+          "record_date": "2023-12-22",
+          "ex_date": "2023-12-25",
+          "pay_date": "2023-12-28",
+          "cash_per_share": 0.048,
+          "declared_cash_per_10_original_shares": 0.48,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512720_cash_20231221",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-12-21/512720_20231221_8S3H.pdf",
+          "receipt_path": "research\\actions\\receipts\\512720_cash_20231221.pdf",
+          "receipt_sha256": "62add7b3f7c9e47c581404faae5b93fb3e51d6a8b0651115b5e3711f6df7cd57",
+          "period": "performance_period"
+        }
+      ],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2022-01-01",
+            "through": "2022-12-31",
+            "source_id": "512720_annual2024_official",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          },
+          {
+            "from": "2024-01-01",
+            "through": "2025-12-31",
+            "source_id": "512720_annual2025_official",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          },
+          {
+            "from": "2026-01-01",
+            "through": "2026-06-30",
+            "source_id": "512720_interim2026_official",
+            "section": "6.4.11",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [
+          {
+            "years": [
+              2023
+            ],
+            "cash_per_10_original_shares_by_year": {
+              "2023": 0.96
+            },
+            "source_id": "512720_annual2025_official",
+            "section": "3.3",
+            "finding": "The two 0.48/10 share distributions sum to the annual 0.96/10 share amount."
+          }
+        ],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "2021-01-01 through 2021-12-31 and 2026-07-01 through 2026-09-30 not covered by official interval-negative documents collected."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512720.html",
+          "raw_file": "eastmoney_actions_sh512720.html",
+          "sha256": "4b8d515bee7ad2462fc36e25fd9a22a9c1e758bbbaf196e92a735ca258ec15f8",
+          "displayed_cash_events": 2,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "512660",
+      "name": "国泰中证军工ETF",
+      "splits": [],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2020-01-01",
+            "through": "2022-12-31",
+            "source_id": "512660_annual2022",
+            "section": "3.3",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          },
+          {
+            "from": "2023-01-01",
+            "through": "2025-12-31",
+            "source_id": "512660_annual2025",
+            "section": "3.3",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          },
+          {
+            "from": "2026-01-01",
+            "through": "2026-06-30",
+            "source_id": "512660_interim2026_official",
+            "section": "6.4.11",
+            "finding": "No profit distributions during the specified period.",
+            "official_host": true
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "2026-07-01 through 2026-09-30: supplier no events, not official interval-negative proof."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512660.html",
+          "raw_file": "eastmoney_actions_sh512660.html",
+          "sha256": "db16f9c30d4eee51decf4ba4c8906911de6ac1191b9d980c6618f565a489ffb0",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "515220",
+      "name": "国泰中证煤炭ETF",
+      "splits": [
+        {
+          "event_id": "515220_split_2024-04-12",
+          "code": "515220",
+          "event_type": "split",
+          "announcement_date": "2024-04-08",
+          "record_date": "2024-04-11",
+          "ex_date": "2024-04-12",
+          "ratio": 2,
+          "ratio_definition": "new_shares / old_shares",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_split_plan_20240408",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-04-08/515220_20240408_YF75.pdf",
+          "receipt_path": "research\\actions\\receipts\\515220_split_plan_20240408.pdf",
+          "receipt_sha256": "71bb99b2a455311b0dce25883c4c16c1df64907a9456b2ffd4deea9978057685",
+          "supporting_sources": [],
+          "period": "performance_period"
+        }
+      ],
+      "dividends": [
+        {
+          "event_id": "515220_dividend_2021-12-27",
+          "code": "515220",
+          "event_type": "cash_dividend",
+          "announcement_date": "2021-12-23",
+          "record_date": "2021-12-24",
+          "ex_date": "2021-12-27",
+          "pay_date": "2021-12-30",
+          "cash_per_share": 0.08,
+          "declared_cash_per_10_original_shares": 0.8,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_cash_20211223",
+          "source_url": "https://st.gtfund.com/report/2021/12/%E5%9B%BD%E6%B3%B0%E4%B8%AD%E8%AF%81%E7%85%A4%E7%82%AD%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%88%86%E7%BA%A2%E5%85%AC%E5%91%8A.pdf",
+          "receipt_path": "research\\actions\\receipts\\515220_cash_20211223.pdf",
+          "receipt_sha256": "cf007f97afd75ebfbae6a530b4c24774accda169a13b5975921f34656aacf26f",
+          "period": "warmup_only"
+        },
+        {
+          "event_id": "515220_dividend_2022-12-27",
+          "code": "515220",
+          "event_type": "cash_dividend",
+          "announcement_date": "2022-12-23",
+          "record_date": "2022-12-26",
+          "ex_date": "2022-12-27",
+          "pay_date": "2022-12-30",
+          "cash_per_share": 0.04,
+          "declared_cash_per_10_original_shares": 0.4,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_cash_20221223",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2022-12-23/1215435217.PDF",
+          "receipt_path": "research\\actions\\receipts\\515220_cash_20221223.pdf",
+          "receipt_sha256": "7fee5510fb0e2e4b58b046fbecdfd20b9173d1d31d301df6a4ab48bb6ea96b02",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "515220_dividend_2023-12-28",
+          "code": "515220",
+          "event_type": "cash_dividend",
+          "announcement_date": "2023-12-26",
+          "record_date": "2023-12-27",
+          "ex_date": "2023-12-28",
+          "pay_date": "2024-01-03",
+          "cash_per_share": 0.05,
+          "declared_cash_per_10_original_shares": 0.5,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_cash_20231226",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-12-26/515220_20231226_XFT5.pdf",
+          "receipt_path": "research\\actions\\receipts\\515220_cash_20231226.pdf",
+          "receipt_sha256": "65f257930bd21bf09541083b0a326b41a3b5ea76e6bdb811783ecae3a2e4962b",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "515220_dividend_2024-12-24",
+          "code": "515220",
+          "event_type": "cash_dividend",
+          "announcement_date": "2024-12-19",
+          "record_date": "2024-12-23",
+          "ex_date": "2024-12-24",
+          "pay_date": "2024-12-27",
+          "cash_per_share": 0.045,
+          "declared_cash_per_10_original_shares": 0.45,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_cash_20241219",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-12-19/515220_20241219_H6AW.pdf",
+          "receipt_path": "research\\actions\\receipts\\515220_cash_20241219.pdf",
+          "receipt_sha256": "32bd9b20b02700dbac8a8195616c74c080741a74840b67dd45af872d97b65206",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "515220_dividend_2025-12-24",
+          "code": "515220",
+          "event_type": "cash_dividend",
+          "announcement_date": "2025-12-19",
+          "record_date": "2025-12-23",
+          "ex_date": "2025-12-24",
+          "pay_date": "2025-12-29",
+          "cash_per_share": 0.04,
+          "declared_cash_per_10_original_shares": 0.4,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "515220_cash_20251219",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2025-12-19/515220_20251219_B5T8.pdf",
+          "receipt_path": "research\\actions\\receipts\\515220_cash_20251219.pdf",
+          "receipt_sha256": "ec15f2fb02463ff756710b744f7301249bb935dbed14a32e0749ff406979b90e",
+          "period": "performance_period"
+        }
+      ],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2026-01-01",
+            "through": "2026-06-30",
+            "source_id": "515220_interim2026_official",
+            "section": "6.4.11",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [
+          {
+            "years": [
+              2023,
+              2024,
+              2025
+            ],
+            "cash_per_10_original_shares_by_year": {
+              "2023": 0.5,
+              "2024": 0.45,
+              "2025": 0.4
+            },
+            "source_id": "515220_annual2025_official",
+            "section": "3.3",
+            "finding": "Annual original-share distribution totals match the three individual announcements; 2023 amount is not halved for the later 2024 split."
+          }
+        ],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "No complete 2021-2022 annual aggregate archive collected (individual positive notices verified). 2026-07-01 through 2026-09-30 supplier no events, not official interval-negative proof."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_515220.html",
+          "raw_file": "eastmoney_actions_sh515220.html",
+          "sha256": "5156e6e6f8c58a7e7a75ffc024ce98a2888fa073dfaaeb26d456e8a2ba622204",
+          "displayed_cash_events": 5,
+          "displayed_split_events": 1,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "512400",
+      "name": "南方中证申万有色金属ETF",
+      "splits": [],
+      "dividends": [
+        {
+          "event_id": "512400_dividend_2024-09-18",
+          "code": "512400",
+          "event_type": "cash_dividend",
+          "announcement_date": "2024-09-11",
+          "record_date": "2024-09-13",
+          "ex_date": "2024-09-18",
+          "pay_date": "2024-09-23",
+          "cash_per_share": 0.01,
+          "declared_cash_per_10_original_shares": 0.1,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512400_cash_20240911",
+          "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-09-11/512400_20240911_IDKV.pdf",
+          "receipt_path": "research\\actions\\receipts\\512400_cash_20240911.pdf",
+          "receipt_sha256": "d32bc562172e637904bab83dfc3b34963edd30e9fac70fc5f1cabd9da9691ea0",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "512400_dividend_2025-09-15",
+          "code": "512400",
+          "event_type": "cash_dividend",
+          "announcement_date": "2025-09-10",
+          "record_date": "2025-09-12",
+          "ex_date": "2025-09-15",
+          "pay_date": "2025-09-18",
+          "cash_per_share": 0.015,
+          "declared_cash_per_10_original_shares": 0.15,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512400_cash_20250910",
+          "source_url": "https://www.nffund.com/main/files/2025/09/09/076473619639.pdf",
+          "receipt_path": "research\\actions\\receipts\\512400_cash_20250910.pdf",
+          "receipt_sha256": "e36e8f0f6941f5720f5f34a8f636719922c4da7c0109ce23119924e2a3279f8c",
+          "period": "performance_period"
+        },
+        {
+          "event_id": "512400_dividend_2026-09-09",
+          "code": "512400",
+          "event_type": "cash_dividend",
+          "announcement_date": "2026-09-04",
+          "record_date": "2026-09-08",
+          "ex_date": "2026-09-09",
+          "pay_date": "2026-09-14",
+          "cash_per_share": 0.08,
+          "declared_cash_per_10_original_shares": 0.8,
+          "currency": "CNY",
+          "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+          "verification_tier": "official_host_original_notice",
+          "source_id": "512400_cash_20260904_official",
+          "source_url": "https://www.nffund.com/main/files/2026/09/02/390752045753.pdf",
+          "receipt_path": "research\\actions\\receipts\\512400_cash_20260904_official.pdf",
+          "receipt_sha256": "44372ae2752f4a8684245b6876fbc99614e9fb78f44d5f5497df24e54431e7ae",
+          "note": "Original official Southern Fund PDF obtained through issuer fundAnnouncement API; all three dates and original amount agree with supplier and transcript. Broker distribution through CSDC on 2026-09-11 is not substituted for the explicitly announced investor cash-payment date 2026-09-14.",
+          "period": "performance_period"
+        }
+      ],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "Positive 2024, 2025 and 2026 events verified at stated authority tiers. Complete period-negative annual archive and annual aggregate completeness were not reviewed."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_512400.html",
+          "raw_file": "eastmoney_actions_sh512400.html",
+          "sha256": "ef733bf8f93ebf22883de7433e17ff4ce6d720957b4bb90763b0c9c6b34f33a6",
+          "displayed_cash_events": 3,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    },
+    {
+      "code": "159611",
+      "name": "广发中证全指电力公用事业ETF",
+      "splits": [],
+      "dividends": [],
+      "coverage": {
+        "official_full_life_event_archive_exhaustively_reviewed": false,
+        "cash_dividend_verified_absence_intervals": [
+          {
+            "from": "2022-01-01",
+            "through": "2024-12-31",
+            "source_id": "159611_annual2024",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          },
+          {
+            "from": "2023-01-01",
+            "through": "2025-12-31",
+            "source_id": "159611_annual2025",
+            "section": "3.3",
+            "official_host": true,
+            "finding": "No fund-to-holder cash profit distributions in this interval. Does not certify absence of splits."
+          }
+        ],
+        "annual_distribution_aggregate_crosschecks": [],
+        "negative_evidence_boundary": "Supplier displayed action history is a discovery aid, not an official exhaustive negative audit. Positive-event verification and absence verification are separate. No complete official split archive was reviewed.",
+        "uncovered_cash_absence_periods": [
+          "2026-01-01 through 2026-09-30: supplier no events, not official interval-negative proof. Fund listed 2022-01-07; it had no exchange trading in the requested 2021 warmup."
+        ],
+        "supplier_discovery": {
+          "source_url": "https://fundf10.eastmoney.com/fhsp_159611.html",
+          "raw_file": "eastmoney_actions_sz159611.html",
+          "sha256": "98aedafd34f19f67c24e3c573d77f4a030fd7e57509f2f00dd1a145dcc62fa71",
+          "displayed_cash_events": 0,
+          "displayed_split_events": 0,
+          "scope_limit": "Current supplier snapshot; no full-history completeness warranty."
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "event_id": "159928_split_2021-06-25",
+      "code": "159928",
+      "event_type": "split",
+      "announcement_date": "2021-06-21",
+      "record_date": "2021-06-24",
+      "ex_date": "2021-06-25",
+      "ratio": 4,
+      "ratio_definition": "new_shares / old_shares",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "159928_split_plan_20210621",
+      "source_url": "https://static.cninfo.com.cn/finalpage/2021-06-21/1210290733.PDF",
+      "receipt_path": "research\\actions\\receipts\\159928_split_plan_20210621.pdf",
+      "receipt_sha256": "30abd64f3b37dbe84c59b583b7200e212a221479ce5099f966a20958b57ab75a",
+      "supporting_sources": [
+        {
+          "source_id": "159928_split_result_20210625",
+          "source_url": "https://www.99fund.com/cgi-bin/news/Article?articleId=12680293&function=print",
+          "receipt_path": "research\\actions\\receipts\\159928_split_result_20210625.html",
+          "receipt_sha256": "368c68f8423ecb212d54a4ff3c3d92db08adc93d7a0693677f11263a5c32cf82"
+        }
+      ],
+      "period": "warmup_only"
+    },
+    {
+      "event_id": "512400_dividend_2024-09-18",
+      "code": "512400",
+      "event_type": "cash_dividend",
+      "announcement_date": "2024-09-11",
+      "record_date": "2024-09-13",
+      "ex_date": "2024-09-18",
+      "pay_date": "2024-09-23",
+      "cash_per_share": 0.01,
+      "declared_cash_per_10_original_shares": 0.1,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512400_cash_20240911",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-09-11/512400_20240911_IDKV.pdf",
+      "receipt_path": "research\\actions\\receipts\\512400_cash_20240911.pdf",
+      "receipt_sha256": "d32bc562172e637904bab83dfc3b34963edd30e9fac70fc5f1cabd9da9691ea0",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512400_dividend_2025-09-15",
+      "code": "512400",
+      "event_type": "cash_dividend",
+      "announcement_date": "2025-09-10",
+      "record_date": "2025-09-12",
+      "ex_date": "2025-09-15",
+      "pay_date": "2025-09-18",
+      "cash_per_share": 0.015,
+      "declared_cash_per_10_original_shares": 0.15,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512400_cash_20250910",
+      "source_url": "https://www.nffund.com/main/files/2025/09/09/076473619639.pdf",
+      "receipt_path": "research\\actions\\receipts\\512400_cash_20250910.pdf",
+      "receipt_sha256": "e36e8f0f6941f5720f5f34a8f636719922c4da7c0109ce23119924e2a3279f8c",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512400_dividend_2026-09-09",
+      "code": "512400",
+      "event_type": "cash_dividend",
+      "announcement_date": "2026-09-04",
+      "record_date": "2026-09-08",
+      "ex_date": "2026-09-09",
+      "pay_date": "2026-09-14",
+      "cash_per_share": 0.08,
+      "declared_cash_per_10_original_shares": 0.8,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512400_cash_20260904_official",
+      "source_url": "https://www.nffund.com/main/files/2026/09/02/390752045753.pdf",
+      "receipt_path": "research\\actions\\receipts\\512400_cash_20260904_official.pdf",
+      "receipt_sha256": "44372ae2752f4a8684245b6876fbc99614e9fb78f44d5f5497df24e54431e7ae",
+      "note": "Original official Southern Fund PDF obtained through issuer fundAnnouncement API; all three dates and original amount agree with supplier and transcript. Broker distribution through CSDC on 2026-09-11 is not substituted for the explicitly announced investor cash-payment date 2026-09-14.",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512480_split_2021-03-29",
+      "code": "512480",
+      "event_type": "split",
+      "announcement_date": "2021-03-24",
+      "record_date": "2021-03-25",
+      "ex_date": "2021-03-29",
+      "ratio": 2,
+      "ratio_definition": "new_shares / old_shares",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512480_split_plan_20210324",
+      "source_url": "https://static.cninfo.com.cn/finalpage/2021-03-24/1209439486.PDF",
+      "receipt_path": "research\\actions\\receipts\\512480_split_plan_20210324.pdf",
+      "receipt_sha256": "684abaeb5c4e4070e063746401a8b8d2cacf87db8d250f4d56da9d1a414aad19",
+      "supporting_sources": [
+        {
+          "source_id": "512480_split_result_20210329",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2021-03-29/1209471570.PDF",
+          "receipt_path": "research\\actions\\receipts\\512480_split_result_20210329.pdf",
+          "receipt_sha256": "b5af3e59ba9684229ab3e5df37313876e56864fec3b438e62249c28e8271ca60"
+        }
+      ],
+      "split_processing_date": "2021-03-26",
+      "suspended_market_dates": [
+        "2021-03-26"
+      ],
+      "ex_date_semantics": "First resumed tradable session on the split-adjusted basis. Processing was 2021-03-26 while suspended; record holdings were 2021-03-25. Announcement is the second reminder; original plan was published 2021-03-17.",
+      "period": "warmup_only"
+    },
+    {
+      "event_id": "512480_split_2026-07-03",
+      "code": "512480",
+      "event_type": "split",
+      "announcement_date": "2026-06-29",
+      "record_date": "2026-07-02",
+      "ex_date": "2026-07-03",
+      "ratio": 2,
+      "ratio_definition": "new_shares / old_shares",
+      "verification_tier": "issuer_authored_original_pdf_on_third_party_host_plus_exchange_support",
+      "source_id": "512480_split_plan_20260629_mirror",
+      "source_url": "https://pdf.dfcfw.com/pdf/H2_AN202606291826521348_1.pdf",
+      "receipt_path": "research\\actions\\receipts\\512480_split_plan_20260629_mirror.pdf",
+      "receipt_sha256": "5d2e131964cb472b59fbc2765577ac4382957d6ef4ef101e237097cf42b277c3",
+      "supporting_sources": [
+        {
+          "source_id": "512480_split_result_20260703_mirror",
+          "source_url": "https://pdf.dfcfw.com/pdf/H2_AN202607031826683755_1.pdf",
+          "receipt_path": "research\\actions\\receipts\\512480_split_result_20260703_mirror.pdf",
+          "receipt_sha256": "efb996ece1a50b24d11eb9c5ffc60b52ea4c06a48ad016bf52ab0aaae3af7ad5"
+        },
+        {
+          "source_id": "512480_exchange_confirmation_20260702",
+          "source_url": "https://www.sse.com.cn/assortment/options/mnjyzxxx/c/c_20260703_10824231.shtml",
+          "receipt_path": "research\\actions\\receipts\\512480_exchange_confirmation_20260702.html",
+          "receipt_sha256": "55f191b61a5a93316b245ba2084bf1e5b114eb7a15992089f27d9d562601732c"
+        }
+      ],
+      "note": "Both plan and result PDFs are issuer-authored original disclosures downloaded from an Eastmoney mirror. Official SSE options-simulation notice independently identifies 2026-07-03 as underlying fund ex-date, but is supporting evidence, not the original fund announcement. Official-host original fund PDF was not retrieved.",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512720_dividend_2023-09-25",
+      "code": "512720",
+      "event_type": "cash_dividend",
+      "announcement_date": "2023-09-21",
+      "record_date": "2023-09-22",
+      "ex_date": "2023-09-25",
+      "pay_date": "2023-09-28",
+      "cash_per_share": 0.048,
+      "declared_cash_per_10_original_shares": 0.48,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512720_cash_20230921",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-09-21/512720_20230921_7RNP.pdf",
+      "receipt_path": "research\\actions\\receipts\\512720_cash_20230921.pdf",
+      "receipt_sha256": "eecbb4bfaf902617c8a500a2147c737177fb020e0acceb84e1bdea7bc9988855",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512720_dividend_2023-12-25",
+      "code": "512720",
+      "event_type": "cash_dividend",
+      "announcement_date": "2023-12-21",
+      "record_date": "2023-12-22",
+      "ex_date": "2023-12-25",
+      "pay_date": "2023-12-28",
+      "cash_per_share": 0.048,
+      "declared_cash_per_10_original_shares": 0.48,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512720_cash_20231221",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-12-21/512720_20231221_8S3H.pdf",
+      "receipt_path": "research\\actions\\receipts\\512720_cash_20231221.pdf",
+      "receipt_sha256": "62add7b3f7c9e47c581404faae5b93fb3e51d6a8b0651115b5e3711f6df7cd57",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "512800_split_2025-07-07",
+      "code": "512800",
+      "event_type": "split",
+      "announcement_date": "2025-07-01",
+      "record_date": "2025-07-04",
+      "ex_date": "2025-07-07",
+      "ratio": 2,
+      "ratio_definition": "new_shares / old_shares",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "512800_BCA04",
+      "source_url": "https://www.fsfund.com/webimages/upload2012/2025/06/30/cb0fbc1a-dd92-4905-8350-4475163d457b/%E5%8D%8E%E5%AE%9D%E5%9F%BA%E9%87%91%E7%AE%A1%E7%90%86%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E5%85%B3%E4%BA%8E%E5%8D%8E%E5%AE%9D%E4%B8%AD%E8%AF%81%E9%93%B6%E8%A1%8C%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%AE%9E%E6%96%BD%E5%9F%BA%E9%87%91%E4%BB%BD%E9%A2%9D%E6%8B%86%E5%88%86%E5%B9%B6%E8%B0%83%E6%95%B4%E6%9C%80%E5%B0%8F%E7%94%B3%E8%B4%AD%E3%80%81%E8%B5%8E%E5%9B%9E%E5%8D%95%E4%BD%8D%E5%8F%8A%E7%9B%B8%E5%85%B3%E4%B8%9A%E5%8A%A1%E5%AE%89%E6%8E%92%E7%9A%84%E5%85%AC%E5%91%8A.pdf",
+      "receipt_path": "research\\actions\\receipts\\512800_BCA04.pdf",
+      "receipt_sha256": "de55623bbe0c234f06f69ee040480058587c98c3f7d3bb5e78e9740d2d09eaa2",
+      "supporting_sources": [
+        {
+          "source_id": "512800_BCA05",
+          "source_url": "https://www.fsfund.com/webimages/upload2012/2025/07/04/ebba9b55-acea-4b33-9786-65013319b8f6/%E5%8D%8E%E5%AE%9D%E5%9F%BA%E9%87%91%E7%AE%A1%E7%90%86%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E5%85%B3%E4%BA%8E%E5%8D%8E%E5%AE%9D%E4%B8%AD%E8%AF%81%E9%93%B6%E8%A1%8C%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%9F%BA%E9%87%91%E4%BB%BD%E9%A2%9D%E6%8B%86%E5%88%86%E7%BB%93%E6%9E%9C%E7%9A%84%E5%85%AC%E5%91%8A.pdf",
+          "receipt_path": "research\\actions\\receipts\\512800_BCA05.pdf",
+          "receipt_sha256": "1bf3b02b93e99530b861b62fbc1ee27e4e21cd5c76e24e61691b182f127912b9"
+        }
+      ],
+      "period": "performance_period"
+    },
+    {
+      "event_id": "515220_dividend_2021-12-27",
+      "code": "515220",
+      "event_type": "cash_dividend",
+      "announcement_date": "2021-12-23",
+      "record_date": "2021-12-24",
+      "ex_date": "2021-12-27",
+      "pay_date": "2021-12-30",
+      "cash_per_share": 0.08,
+      "declared_cash_per_10_original_shares": 0.8,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_cash_20211223",
+      "source_url": "https://st.gtfund.com/report/2021/12/%E5%9B%BD%E6%B3%B0%E4%B8%AD%E8%AF%81%E7%85%A4%E7%82%AD%E4%BA%A4%E6%98%93%E5%9E%8B%E5%BC%80%E6%94%BE%E5%BC%8F%E6%8C%87%E6%95%B0%E8%AF%81%E5%88%B8%E6%8A%95%E8%B5%84%E5%9F%BA%E9%87%91%E5%88%86%E7%BA%A2%E5%85%AC%E5%91%8A.pdf",
+      "receipt_path": "research\\actions\\receipts\\515220_cash_20211223.pdf",
+      "receipt_sha256": "cf007f97afd75ebfbae6a530b4c24774accda169a13b5975921f34656aacf26f",
+      "period": "warmup_only"
+    },
+    {
+      "event_id": "515220_dividend_2022-12-27",
+      "code": "515220",
+      "event_type": "cash_dividend",
+      "announcement_date": "2022-12-23",
+      "record_date": "2022-12-26",
+      "ex_date": "2022-12-27",
+      "pay_date": "2022-12-30",
+      "cash_per_share": 0.04,
+      "declared_cash_per_10_original_shares": 0.4,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_cash_20221223",
+      "source_url": "https://static.cninfo.com.cn/finalpage/2022-12-23/1215435217.PDF",
+      "receipt_path": "research\\actions\\receipts\\515220_cash_20221223.pdf",
+      "receipt_sha256": "7fee5510fb0e2e4b58b046fbecdfd20b9173d1d31d301df6a4ab48bb6ea96b02",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "515220_dividend_2023-12-28",
+      "code": "515220",
+      "event_type": "cash_dividend",
+      "announcement_date": "2023-12-26",
+      "record_date": "2023-12-27",
+      "ex_date": "2023-12-28",
+      "pay_date": "2024-01-03",
+      "cash_per_share": 0.05,
+      "declared_cash_per_10_original_shares": 0.5,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_cash_20231226",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2023-12-26/515220_20231226_XFT5.pdf",
+      "receipt_path": "research\\actions\\receipts\\515220_cash_20231226.pdf",
+      "receipt_sha256": "65f257930bd21bf09541083b0a326b41a3b5ea76e6bdb811783ecae3a2e4962b",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "515220_split_2024-04-12",
+      "code": "515220",
+      "event_type": "split",
+      "announcement_date": "2024-04-08",
+      "record_date": "2024-04-11",
+      "ex_date": "2024-04-12",
+      "ratio": 2,
+      "ratio_definition": "new_shares / old_shares",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_split_plan_20240408",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-04-08/515220_20240408_YF75.pdf",
+      "receipt_path": "research\\actions\\receipts\\515220_split_plan_20240408.pdf",
+      "receipt_sha256": "71bb99b2a455311b0dce25883c4c16c1df64907a9456b2ffd4deea9978057685",
+      "supporting_sources": [],
+      "period": "performance_period"
+    },
+    {
+      "event_id": "515220_dividend_2024-12-24",
+      "code": "515220",
+      "event_type": "cash_dividend",
+      "announcement_date": "2024-12-19",
+      "record_date": "2024-12-23",
+      "ex_date": "2024-12-24",
+      "pay_date": "2024-12-27",
+      "cash_per_share": 0.045,
+      "declared_cash_per_10_original_shares": 0.45,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_cash_20241219",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2024-12-19/515220_20241219_H6AW.pdf",
+      "receipt_path": "research\\actions\\receipts\\515220_cash_20241219.pdf",
+      "receipt_sha256": "32bd9b20b02700dbac8a8195616c74c080741a74840b67dd45af872d97b65206",
+      "period": "performance_period"
+    },
+    {
+      "event_id": "515220_dividend_2025-12-24",
+      "code": "515220",
+      "event_type": "cash_dividend",
+      "announcement_date": "2025-12-19",
+      "record_date": "2025-12-23",
+      "ex_date": "2025-12-24",
+      "pay_date": "2025-12-29",
+      "cash_per_share": 0.04,
+      "declared_cash_per_10_original_shares": 0.4,
+      "currency": "CNY",
+      "amount_basis": "Original number of shares at the event, not adjusted for subsequent splits.",
+      "verification_tier": "official_host_original_notice",
+      "source_id": "515220_cash_20251219",
+      "source_url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2025-12-19/515220_20251219_B5T8.pdf",
+      "receipt_path": "research\\actions\\receipts\\515220_cash_20251219.pdf",
+      "receipt_sha256": "ec15f2fb02463ff756710b744f7301249bb935dbed14a32e0749ff406979b90e",
+      "period": "performance_period"
+    }
+  ],
+  "cash_supplier_crosschecks": [
+    {
+      "event_id": "512720_dividend_2023-09-25",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "512720_dividend_2023-12-25",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "515220_dividend_2021-12-27",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "515220_dividend_2022-12-27",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "515220_dividend_2023-12-28",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "515220_dividend_2024-12-24",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "515220_dividend_2025-12-24",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "512400_dividend_2024-09-18",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "512400_dividend_2025-09-15",
+      "supplier_dates_and_original_amount_match": true
+    },
+    {
+      "event_id": "512400_dividend_2026-09-09",
+      "supplier_dates_and_original_amount_match": true
+    }
+  ],
+  "source_manifest": "research/actions/source_manifest.json",
+  "interpretation_rules": [
+    "Entitlement is based on shares at the close of record_date. Recognize dividend receivable on ex_date; make that amount spendable cash only on pay_date. Do not credit spendable cash on record/ex date.",
+    "For main-period accounts beginning 2022-04-01, no pre-start entitlement exists. Warmup actions are for adjusted signal continuity only.",
+    "Use raw traded prices for the ledger, share multiplier on effective split session, and contemporaneous cash_per_share. Do not combine fully adjusted price wealth with another cash/split credit.",
+    "Record dates from supplier split tables must not be assumed to be market ex dates. 512480 in 2021 had record 03-25, processing/suspension 03-26, resumed tradable split basis 03-29.",
+    "Splits carry no cash profit and no fee. Fractions here cannot arise from integer 100-share holdings with integer ratios.",
+    "Published cash dates model ordinary designated-trading investor receipt. Special seats/unregistered designated trading may differ; actual broker settlement is not reconstructed.",
+    "No independent tax or constituent-dividend credit is added: fund distributions described as cash per share, and constituent income/ongoing expenses already affect fund NAV.",
+    "None of the ten funds is certified as having an exhaustively reviewed official whole-life corporate-action archive. Empty tables are not proof of no events."
+  ],
+  "known_evidence_limitations": [
+    "512480 2026 split issuer PDF currently on Eastmoney mirror; original-host notice unavailable, with official SSE supporting ex-date evidence.",
+    "Negative official evidence is interval-specific as recorded in assets[].coverage; periods outside it remain partial research coverage."
+  ]
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>板块机会 · 模块02</title>
+  <link rel="stylesheet" href="/opportunities.css">
+  <link rel="stylesheet" href="/research-common.css"><script src="/research-common.js" defer></script><script src="/opportunities.js" defer></script>
+</head>
+<body class="op-page">
+  <div class="topline"><div class="page-width"><span class="brand"><span class="brand-mark" aria-hidden="true">M</span> ETF 研究工作台</span><span class="readonly">独立研究 · 只读参考</span></div></div>
+  <main class="page-width">
+<nav class="module-nav" aria-label="研究模块"><a href="/market">01 市场环境</a><a href="/opportunities" aria-current="page">02 板块机会</a><a href="/capital">03 资金与执行</a></nav>
+    <header class="page-header"><div><p class="eyebrow">模块 02 / SECTOR OBSERVATION</p><h1>板块机会</h1><p class="lead">在同一日期比较十只 ETF，区分趋势资格、相对表现与自身涨跌。</p></div><div class="edition">已发布资料研究 <strong>v2</strong><small>行情管理独立核对 · 无交易操作</small></div></header>
+<section class="update-widget" data-update-widget aria-label="全局行情资料管理"></section>
+
+    <section class="timeliness" id="opTimeliness" aria-labelledby="opDataTitle">
+      <div class="timeliness-heading"><h2 id="opDataTitle">行情日期与市场背景</h2><span class="status-pill" id="opFreshness">尚未读取</span></div>
+      <div class="date-grid"><div><span class="meta-label">本次观察日期</span><strong id="opSnapshotDate">—</strong><small id="opMode">等待资料</small></div><div><span class="meta-label">当前应完成日期</span><strong id="opExpectedDate">—</strong><small id="opCalendar">日历核验范围：—</small></div><div><span class="meta-label">指数 / 最早板块资料日</span><strong class="dates-pair" id="opSourceDates">— / —</strong><small>检查时间不代替行情日期</small></div></div>
+      <div class="market-context"><div><span>市场趋势</span><strong id="opMarketTrend">—</strong></div><div><span>固定池 TRIX 参与</span><strong id="opMarketBreadth">—</strong></div><p>市场背景沿用模块01，作为阅读上下文，不自动改变分组或仓位。</p></div>
+      <div class="freshness-notes" id="opFreshnessNotes"><p>“最新”指已发布资料的最新可用日；后台核对和发布状态见上方行情资料管理。</p></div>
+      <div class="timestamps"><span id="opFrozenAt">指数来源冻结时间：—</span><span id="opCalculatedAt">本次计算时间：—</span></div>
+    </section>
+
+    <section class="toolbar" aria-label="观察日期与导出"><label class="date-picker" for="opDate"><span>选择观察日期</span><select id="opDate"><option value="">最新可用资料</option></select></label><div class="toolbar-buttons"><button id="opLatest" type="button">回到最新</button><button id="opReload" type="button" class="button-primary">重新检查时效</button><button id="opExport" type="button" disabled>导出 JSON</button></div><p class="toolbar-help">重新检查仅重新计算当前资料状态并核对时效，不下载或重载新行情。切换日期同时更新板块比较与所选 ETF 曲线。</p></section>
+    <div id="opDatesError" class="message error" role="alert" hidden></div>
+    <div id="opRequest" class="message loading" role="status" aria-live="polite">正在读取板块资料…</div>
+    <details id="opWarnings" class="data-boundaries" hidden><summary id="opWarningsTitle">资料边界</summary><div id="opWarningsBody"></div></details>
+
+    <section class="observation-groups" aria-labelledby="opGroupTitle"><div class="group-heading"><div><p class="section-kicker">先看分布</p><h2 id="opGroupTitle">描述性观察分组</h2></div><button id="opReset" class="quiet-button" type="button">恢复固定池顺序</button></div><p class="group-note">“两项同时成立”仅表示原 TRIX 资格成立且60日跑赢全指，<strong>自身收益仍可能为负</strong>。SKDJ单独列示，不参与这些分组。</p><div class="group-buttons" id="opGroupButtons"><button type="button" data-group="all" aria-pressed="true"><span>全部板块</span><strong data-count="all">—</strong><small>固定十只 ETF</small></button><button type="button" data-group="both" aria-pressed="false"><span>两项同时成立</span><strong data-count="both">—</strong><small>TRIX资格＋相对领先</small></button><button type="button" data-group="trend_only" aria-pressed="false"><span>仅趋势资格</span><strong data-count="trend_only">—</strong><small>相对未领先</small></button><button type="button" data-group="relative_only" aria-pressed="false"><span>仅相对领先</span><strong data-count="relative_only">—</strong><small>TRIX资格未成立</small></button><button type="button" data-group="neither" aria-pressed="false"><span>两项均未成立</span><strong data-count="neither">—</strong><small>两个条件均不符合</small></button><button type="button" data-group="unknown" aria-pressed="false"><span>资料待齐</span><strong data-count="unknown">—</strong><small>未知不计作落后</small></button></div></section>
+
+    <section class="panel comparison-panel" aria-labelledby="opCompareTitle"><div class="panel-heading"><div><p class="section-kicker">同日对照</p><h2 id="opCompareTitle">十只 ETF 比较</h2><p class="panel-subtitle" id="opTableState">默认按固定研究池顺序，不自动选出推荐标的。</p></div><label class="sort-picker" for="opSort"><span>显示顺序</span><select id="opSort"><option value="pool">固定研究池原序</option><option value="relative60_desc">60日相对表现：高 → 低</option><option value="return20_desc">20日总回报：高 → 低</option><option value="return60_desc">60日总回报：高 → 低</option><option value="volatility20_asc">20日年化波动：低 → 高</option><option value="drawdown60_asc">60日回落：小 → 大</option><option value="amount20_desc">20日日均成交额：高 → 低</option></select></label></div><p class="comparison-note">收益采用含分红理论再投资的经济总回报，不计交易费用。正负号表示自身涨跌；“相对领先”只表示同期胜过基准。</p><p class="rank-state" id="opRankState">完整池排名与相对指标可用数量：—</p><p class="op-scroll-hint">表格可横向滑动；点击板块名称查看曲线，展开成交额可看人民币精确数值。</p><div class="table-scroll"><table class="op-table"><thead><tr><th scope="col">板块 / ETF</th><th scope="col">TRIX资格</th><th scope="col">SKDJ独立状态</th><th scope="col" class="numeric">20日总回报</th><th scope="col" class="numeric">60日总回报</th><th scope="col" class="numeric">60日相对全指</th><th scope="col" class="numeric">20日年化波动</th><th scope="col" class="numeric">距60日高点回落</th><th scope="col" class="numeric">20日日均成交额</th><th scope="col">观察分组</th><th scope="col">资料日期</th></tr></thead><tbody id="opSectorRows"><tr><td colspan="11" class="empty-cell">等待资料</td></tr></tbody></table></div><p class="filter-scope" id="opFilterScope">分组和排序只改变这张表，不会自动切换已选板块或日期。</p></section>
+
+    <section class="panel op-chart-panel" aria-labelledby="opChartTitle"><div class="panel-heading"><div><p class="section-kicker">单板块回看</p><h2 id="opChartTitle">ETF与全指全收益的相对路径</h2><p class="panel-subtitle" id="opChartDates">等待资料</p></div><div class="segment-control" role="group" aria-label="图表范围"><button type="button" data-window="252" aria-pressed="true">近1年</button><button type="button" data-window="756" aria-pressed="false">近3年</button></div></div>
+      <div class="chart-selection"><label for="opSelectedCode"><span>当前图表板块</span><select id="opSelectedCode"><option value="">等待板块列表</option></select></label><p id="opSelectedState">选择板块只切换观察曲线，不产生买卖指令。</p></div>
+      <div class="selected-metrics"><div><span>所选ETF20日总回报</span><strong id="opSelectedReturn20">—</strong></div><div><span>所选ETF60日总回报</span><strong id="opSelectedReturn60">—</strong></div><div><span>全指同期60日总回报</span><strong id="opBenchmarkReturn60">—</strong></div><div><span>所选ETF60日相对表现</span><strong id="opSelectedRelative60">—</strong></div></div>
+      <div class="chart-legend"><span><i></i><span id="opEtfLegend">所选ETF</span></span><span><i class="op-benchmark-line"></i>中证全指全收益</span></div><div class="chart-wrap" id="opChartWrap"><div class="empty-state" id="opChartEmpty">载入后显示同起点归一化曲线</div><svg id="opChart" role="img" aria-label="所选ETF与中证全指全收益归一化曲线" tabindex="0" hidden></svg><div class="chart-tooltip" id="opChartTooltip" hidden></div></div>
+      <p class="chart-caption" id="opBaseDate">同起点归一为100；这不是账户净值或策略净收益。</p><p class="chart-caption">近1年 / 近3年分别取最多252 / 756条交易记录，不是精确自然年。窗口内全收益路径与模块01的价格指数曲线口径不同。可移动指针或用键盘左右键查看。</p><div id="opChartNotes" class="chart-notes" hidden></div>
+    </section>
+
+    <details class="panel rules-panel"><summary><span><span class="section-kicker">核对依据</span><strong>规则、来源与使用边界</strong></span><span class="details-indicator" aria-hidden="true">+</span></summary><div class="rules-content"><div class="rule-grid"><article><h3>状态与机会分组</h3><p>TRIX资格沿用原指标规则。相对表现与中证全指全收益比较；分组不保证未来收益，也不保证ETF自身已经上涨。SKDJ只作为单独观察，不自动与TRIX拼成新策略。</p></article><article><h3>收益、排名与成交额</h3><p>20/60日收益是经济总回报口径，不计交易费用。相对名次只在十只ETF全部可比时生成；显示顺序可调整，但不是综合评分或胜率。20日日均成交额为人民币元，可展开查看精确数值。</p></article><article><h3>风险与资料未知</h3><p>20日年化波动描述变化幅度，低波动不等于低风险。60日回落不是策略最大回撤。未知指标保持未知，不能当作条件不成立或相对落后。</p></article><article><h3>历史查看与功能范围</h3><p>计算不使用观察日之后的价格，原始记录的历史发布版本未逐时核验。本模块只读，不下单、不调整仓位，不展示未经验证的上涨概率；页面使用当前已发布版本，后台检查与发布状态另行显示。</p></article></div><div id="opCoreRules" class="sources-block" hidden></div><div class="sources-block"><h3>本次资料来源</h3><ul id="opSources"><li>等待接口提供来源</li></ul></div></div></details>
+    <footer class="page-footer"><span>模块02 · 板块机会</span><span>固定研究池观察 · 不构成自动推荐</span></footer>
+  </main>
+  <noscript><p class="noscript">需要启用 JavaScript 才能读取本机资料。行情管理状态需由服务返回，不能从页面计算时间推断。</p></noscript>
+</body>
+</html>

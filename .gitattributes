@@ -1,0 +1,16 @@
+# Retain exact source bytes where build and dataset manifests track hashes.
+/production/** -text
+/AGENTS.md text eol=lf
+/README.md text eol=lf
+/CHANGELOG.md text eol=lf
+/.gitignore text eol=lf
+/.gitattributes text eol=lf
+/tests/** text eol=lf
+/scripts/** text eol=lf
+# Keep text evidence hashes stable across Windows and Linux checkouts.
+/docs/** text eol=lf
+*.zip binary
+*.gz binary
+*.pdf binary
+*.png binary
+*.ico binary

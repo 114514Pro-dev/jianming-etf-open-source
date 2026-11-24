@@ -1,0 +1,33 @@
+name: simple-etf-web
+services:
+  app:
+    image: ${SIMPLE_ETF_IMAGE:?Set an immutable committed release image}
+    user: 10001:10001
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${SIMPLE_ETF_ENV_FILE:?Use the existing private server environment}
+    environment:
+      SIMPLE_ETF_HOME: /data
+      ETF_WEB_SECURE_COOKIE: "1"
+    volumes:
+      - etf_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    mem_limit: 5g
+    cpus: 2
+    pids_limit: 192
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    expose: ["8000"]
+    stop_grace_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  etf_data:
+    external: true
+    name: simple-etf-web_etf_data

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a1220">
+  <title>简明 ETF · 模拟交易</title>
+  <meta id="ui-version" name="app-version" content="__UI_VERSION__">
+  <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/valuation-scenarios.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/company-review.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/quality-checks.css?v=__UI_VERSION__">
+  <script src="/static/locale-en.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/i18n.js?v=__UI_VERSION__" defer></script>
+  <link rel="stylesheet" href="/static/featured-strategies.css?v=__UI_VERSION__">
+  <script src="/static/featured-research-data.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/featured-strategies.js?v=__UI_VERSION__" defer></script>
+  <link rel="stylesheet" href="/static/realtime-paper.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/realtime-paper-comparison.css?v=__UI_VERSION__">
+  <script src="/static/realtime-paper-comparison.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/realtime-paper-wechat.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/realtime-paper.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/app.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/valuation-scenarios.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/company-review.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/quality-checks.js?v=__UI_VERSION__" defer></script>
+  <script src="/static/company-research.js?v=__UI_VERSION__" defer></script>
+</head>
+<body>
+  <aside id="update-notice" class="update-notice" role="status" hidden>
+    <span>网站已更新。完成当前填写后，刷新即可使用新版。</span>
+    <button id="update-page" type="button" class="button primary small-button">刷新到新版</button>
+  </aside>
+  <section id="login-screen" class="login-screen" hidden>
+    <div class="login-story">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><span>简明 ETF<small>模拟交易工作台</small></span></div>
+      <span class="eyebrow">用同一份数据，认真检验每一种想法</span>
+      <h1>看清策略，<br>再做下一步。</h1>
+      <p>原有 21 种策略，新增纳指与恒生海外专区。查看市场、比较历史表现，在模拟账本里留下每一次判断。</p>
+      <div class="login-points"><span>真实行情时刻</span><span>独立模拟账本</span><span>完整导出与恢复</span></div>
+      <div class="decor-chart" aria-hidden="true"><svg viewBox="0 0 600 180"><path class="decor-grid" d="M0 40H600M0 90H600M0 140H600"/><path class="decor-line faint" d="M0 150L45 138L80 146L125 103L170 118L210 91L250 111L300 79L345 89L390 49L430 65L470 52L515 26L560 38L600 19"/><path class="decor-line" d="M0 166L45 160L80 132L125 137L170 118L210 129L250 87L300 95L345 61L390 76L430 51L470 68L515 38L560 47L600 12"/></svg><span>示意曲线 · 不代表策略实际收益</span></div>
+    </div>
+    <div class="login-language"><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div>
+    <form id="login-form" class="login-card">
+      <span class="eyebrow">欢迎回来</span><h2>进入你的工作台</h2>
+      <p class="muted">输入访问密码，继续查看你的模拟记录。</p>
+      <label for="password">访问密码</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus placeholder="输入访问密码">
+      <label class="login-remember" for="login-remember-device"><input id="login-remember-device" name="remember_device" type="checkbox" checked aria-describedby="login-remember-help"><span>在此设备保持登录</span></label>
+      <p id="login-remember-help" class="login-remember-help">首次登录后，服务重启也保持登录。<br>180天有效并自动续期；退出登录或清除浏览器数据后需重新登录。<br><span>共用设备请取消勾选。</span></p>
+      <p id="login-error" class="inline-error" role="alert" hidden></p>
+      <button class="button primary wide" type="submit" id="login-submit">登录工作台 <span aria-hidden="true">→</span></button>
+      <p class="small muted login-foot">仅用于模拟交易。后台可按已确认周期自动记账，不连接实盘。</p>
+    </form>
+  </section>
+
+  <div id="app-shell" class="app-shell" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="#overview" data-page="overview"><span class="brand-mark" aria-hidden="true">↗</span><span>简明 ETF<small>模拟交易工作台</small></span></a>
+      <div class="sidebar-caption">工作台</div>
+      <nav aria-label="主导航">
+        <button class="nav-item active" data-page="overview"><span aria-hidden="true">◈</span><span>市场总览</span></button>
+        <button class="nav-item" data-page="overseas"><span aria-hidden="true">◎</span><span>海外专区</span></button>
+        <button class="nav-item" data-page="featured"><span aria-hidden="true">☆</span><span>精选策略</span></button>
+        <button class="nav-item" data-page="signals"><span aria-hidden="true">⌁</span><span>策略信号</span></button>
+        <button class="nav-item" data-page="research"><span aria-hidden="true">◇</span><span>AI选公司</span></button>
+        <button class="nav-item" data-page="accounts"><span aria-hidden="true">▣</span><span>历史回放账户</span></button>
+        <button class="nav-item" data-page="realtime-paper"><span aria-hidden="true">◷</span><span>D0 前瞻模拟</span></button>
+        <button class="nav-item" data-page="compare"><span aria-hidden="true">≋</span><span>策略比较</span></button>
+        <button class="nav-item" data-page="tasks"><span aria-hidden="true">◷</span><span>任务记录</span><span id="running-count" class="nav-count" hidden>0</span></button>
+        <a id="sector-research-entry" href="/sector-research/" style="display:block;padding:12px 14px;margin-top:8px;border-radius:10px;color:inherit;text-decoration:none;border:1px solid currentColor" data-i18n-skip>板块研究台 / Sector research ↗</a>
+      </nav>
+      <div class="sidebar-bottom"><span class="status-dot"></span> 仅模拟 · 无实盘下单<p>境内策略 + 纳指 / 恒生专区</p><button id="logout-button" class="text-button">退出登录</button></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><span class="eyebrow">PAPER TRADING</span><h1 id="page-title">市场总览</h1></div><div class="connection"><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label><span id="connection-dot" class="status-dot"></span><span id="connection-text">正在连接</span><button id="mobile-logout" class="text-button mobile-only" type="button">退出</button></div></header>
+      <div id="global-error" class="notice error-notice" role="alert" hidden><span id="global-error-text"></span><button id="dismiss-error" class="icon-button" aria-label="关闭错误提示">×</button></div>
+
+      <section class="page" id="page-overview">
+        <div class="section-heading"><div><h2>行情有时间，判断有依据。</h2><p>报价、已确认 K 线与账户进度分别显示，避免把历史状态当成今天。</p></div><button id="refresh-market" class="button primary">↻ 刷新行情</button></div>
+        <div id="market-stats" class="metric-grid market-stats"></div>
+        <div class="panel automation-panel"><div class="panel-heading"><div><span class="eyebrow">服务器后台运行</span><h3>关闭网页，也继续跟踪</h3></div><span id="market-session" class="pill neutral">正在读取状态</span></div><div class="automation-switches"><label class="automation-switch"><input id="auto-refresh" type="checkbox" disabled><span><strong>行情与策略参考自动更新</strong><small id="refresh-frequency">正在读取更新频率…</small></span></label><label class="automation-switch"><input id="auto-simulate" type="checkbox" disabled><span><strong>全部账户自动模拟</strong><small>按原策略已确认周期推进，可逐账户暂停</small></span></label></div><div class="automation-timing"><span id="refresh-countdown">正在读取更新设置…</span><span id="history-countdown"></span></div><p id="automation-summary" class="small muted">正在读取后台状态…</p><p class="small muted">两个开关独立：暂停行情更新后仍可按已有确认行情模拟；暂停自动模拟后仍可更新行情与参考。间隔是正常运行目标；长区间模拟或比较时可能延后，报价也可能有来源延迟。</p><p id="automation-error" class="inline-error" role="alert" hidden></p><details class="raw-details"><summary>查看后台运行结果</summary><pre id="automation-details"></pre></details></div>
+        <div class="panel"><div class="panel-heading"><div><span class="eyebrow">市场快照</span><h3>关注的 ETF</h3></div><span class="pill">来源报价 · 非成交价</span></div><p id="quote-session-note" class="quote-session-note small muted"></p><div id="quotes-area"></div><div id="market-warnings" class="notes"></div></div>
+        <div id="confirmed-signals" class="panel" hidden></div>
+        <div class="panel reference-panel"><div class="panel-heading"><div><span class="eyebrow">策略参考</span><h3>这笔预算，策略怎样分配？</h3></div></div>
+          <form id="reference-form" class="form-row"><label>策略组<select id="reference-group"></select></label><label class="grow">参考策略<select id="reference-strategy"></select></label><label>独立参考本金 / 元<input id="reference-capital" type="number" min="1000" max="10000000000" step="any" value="100000" required></label><button type="submit" class="button primary">计算参考</button></form>
+          <p class="small muted">参考配置按独立预算计算，不是某个模拟账户的持仓。仅使用来源中已有的报价或已确认 K 线。后台参考与当前策略、本金一致时会自动跟随更新。</p><p id="reference-auto-note" class="small muted"></p>
+          <div id="reference-result" class="empty-state compact"><span class="empty-symbol">◈</span><p>选择一个策略，查看它的配置与判断依据。</p></div>
+        </div>
+        <div class="overview-bottom"><p>需要留下一段连续的模拟记录？</p><button class="text-button" data-goto="accounts">去建立模拟账户 <span aria-hidden="true">→</span></button><div class="spacer"></div><button id="export-history" class="button secondary small-button">导出历史日线</button><button id="export-quotes" class="button secondary small-button">导出已采集报价</button><button id="full-backup" class="button secondary small-button">下载完整备份</button><a href="/api/report" target="_blank" rel="noopener" class="button secondary small-button">阅读策略研究报告 ↗</a></div>
+        <details class="raw-details"><summary>查看完整行情资料</summary><pre id="overview-raw"></pre></details>
+      </section>
+
+
+      <section class="page" id="page-overseas" hidden>
+        <div class="section-heading"><div><span class="eyebrow">GLOBAL MARKETS · RMB ETF</span><h2>纳指与恒生，有自己的观察窗口。</h2><p>境内人民币 ETF · 三个市场独立分析、独立模拟。</p></div><button id="overseas-refresh" class="button primary">↻ 刷新海外行情</button></div>
+        <div id="overseas-quotes" class="overseas-quotes"><div class="panel">正在读取海外市场…</div></div>
+        <p id="overseas-update-note" class="small muted"></p>
+        <div id="overseas-tabs" class="segment" role="group" aria-label="海外市场"></div>
+        <div class="panel reference-panel"><div class="panel-heading"><h3 id="overseas-market-title">策略与模拟</h3><span class="pill neutral">独立账本</span></div>
+          <form id="overseas-form" class="form-row"><label class="grow">参考策略<select id="overseas-strategy"></select></label><label>参考本金 / 元<input id="overseas-capital" type="number" min="1000" max="1000000000" value="100000" required></label><button class="button primary" type="submit">计算参考</button></form>
+          <p class="small muted">策略参考和模拟账户在收盘资料确认后更新；小时策略按真实小时顺序重放。报价刷新不会直接产生模拟成交。新账户需要选择自己的起点，随后可由后台持续推进。</p>
+          <div id="overseas-reference"></div><div class="button-row overseas-actions"><button id="overseas-new" class="button primary">＋ 建立本市场历史回放账户</button><button id="overseas-accounts" class="button secondary">查看本市场账户</button><button id="overseas-compare" class="button secondary">选择区间重新比较</button></div>
+        </div>
+        <div class="panel"><div class="panel-heading"><div><span class="eyebrow">此前独立研究 · 冻结结果</span><h3>21 种策略，先看适用范围</h3></div><a class="text-button" href="/api/overseas/report" target="_blank" rel="noopener">完整研究报告 ↗</a></div>
+          <div class="form-row"><label>研究情景<select id="overseas-variant"><option value="base">基准费用</option><option value="cost2">佣金与滑点加倍</option><option value="delay">信号延迟一周期</option></select></label></div>
+          <p id="overseas-research-note" class="small muted"></p><div id="overseas-research-table"></div>
+          <div class="notes"><p>多资产策略包含黄金、银行或国债收益；可点“曲线与贡献”检查来源，不能当成纯目标 ETF 择时成绩。</p><p>这些是境内人民币跨境 ETF，按境内交易时间报价。海外休市、汇率、申赎限制和溢价可能影响价格；研究未加入完整历史溢价过滤、排队成交或大额冲击，也没有真正未见样本外验证。</p></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-featured" hidden>
+        <div class="section-heading"><div><span class="eyebrow">SELECTED STRATEGIES</span><h2>按策略组，查看重点候选</h2><p>四资产、创业板五策略、七组合与海外市场，各自展示已有研究支持的观察名单。</p></div><div class="button-row"><button id="featured-all" class="button secondary">查看全部策略</button><button id="featured-refresh" class="button primary">↻ 读取最新信号</button></div></div>
+        <div class="panel featured-overview"><p>各组采用自己的研究区间和筛选条件；请结合卡片依据阅读，不将不同组的年化直接排成总榜。</p><details><summary>筛选覆盖了哪些策略？</summary><p>四资产：原九策略中，F/L 六个版本在最新五种费用与延迟情景中表现较稳健；统计检验仍为证据不足。</p><p>创业板五策略：保留此前多周期研究选出的五个候选。七组合：接入此前七组合研究明确列出的三个重点观察方案。</p><p>海外：按纳指、恒生指数、恒生科技分别展示既有研究候选；不同市场同名代码是不同模型。</p><p>已有回测不等于通过相同的最新测试。最新 27 模型压力研究未覆盖全部 84 个模型；未出现在本页的策略不能据此视为被淘汰。</p><p>这是按已有研究整理的固定观察名单。读取最新信号只更新模型状态，不会重新甄选名单、重跑回测或调整账户。</p></details><p id="featured-progress" class="small muted" role="status">正在读取最新信号…</p><p id="featured-error" class="inline-error" role="alert" hidden></p></div>
+        <div id="featured-list" aria-label="精选策略列表"></div>
+      </section>
+
+      <section class="page" id="page-signals" hidden>
+        <div class="section-heading"><div><span class="eyebrow">MODEL SIGNALS</span><h2>每个模型，现在想做什么。</h2><p>境内 21 种策略 + 纳指、恒生指数、恒生科技各 21 种。不需要先建账户。</p></div><button id="signals-refresh" class="button secondary">↻ 读取最新结果</button></div>
+        <div class="panel signal-explainer"><p>每张卡片显示最近确认日的买卖或未操作状态，并保留最近一次模拟成交。“待买入／待卖出”表示下一步意向，尚未成交；点开依据可查看成交明细和原因。</p><p id="signals-note" class="small muted">后台按各策略的已确认周期更新；关闭网页仍继续计算。</p><p id="signals-progress" class="small muted" role="status">正在读取模型状态…</p><p id="signals-error" class="inline-error" hidden></p></div>
+        <div id="signals-counts" class="signal-counts" aria-label="模型信号数量"></div>
+        <div class="panel signal-filters"><label>市场与策略组<select id="signals-group"><option value="all">全部市场 · 84 个模型</option></select></label><label>当前意向<select id="signals-status"><option value="all">全部意向</option><option value="buy">包含买入</option><option value="sell">包含卖出</option><option value="rebalance">调仓</option><option value="hold">继续持有</option><option value="cash">保持空仓</option><option value="wait">等待确认或更新</option></select></label><label class="grow">搜索模型<input id="signals-search" type="search" placeholder="如 Supertrend、D7、纳指" autocomplete="off"></label></div>
+        <div class="signal-filter-summary"><p id="signals-matched" class="small muted"></p><button id="signals-clear" class="button secondary small-button">清除全部筛选</button></div><div id="signals-list" class="signal-grid"></div>
+      </section>
+
+      <section class="page research-page" id="page-research" hidden>
+        <div class="section-heading research-heading"><div><span class="eyebrow">COMPANY RESEARCH</span><h2>让机器读财报，把依据留下。</h2><p>扫描全 A 股，按行业筛查，再深入研究候选公司。公司质量、财务风险与价格分别判断。</p></div><button id="research-scan" class="button primary" type="button">↻ 更新全市场资料</button></div>
+        <div class="research-intro"><span class="research-intro-mark" aria-hidden="true">◇</span><div><strong>从公司出发，先看证据。</strong><p>程序按财务规则初筛，AI 挑选原文证据与待核查问题。当前模式不形成完整公司结论；候选不是买入指令。港股研究后续扩展。</p></div></div>
+        <p id="research-error" class="inline-error" role="alert" hidden></p>
+        <div id="research-coverage" class="research-coverage" aria-label="全市场覆盖状态"></div>
+        <div class="panel research-progress-panel"><div class="panel-heading"><h3>研究进度</h3><span id="research-scan-state" class="pill neutral">正在读取</span></div><p id="research-progress-text" role="status" aria-live="polite">正在读取全市场资料状态…</p><p id="research-source-refresh" class="small muted" hidden></p><progress id="research-progress" max="100" value="0" aria-label="扫描进度" hidden></progress><div class="research-progress-foot"><span id="research-data-time" class="small muted"></span><button id="research-cancel" class="button secondary small-button" type="button" hidden>停止本次扫描</button></div><p id="research-ai-state" class="small muted"></p></div>
+        <details id="research-settings" class="panel research-settings"><summary>自动研究设置</summary><form id="research-settings-form"><div class="research-settings-grid"><label class="automation-switch"><input id="research-auto" type="checkbox"><span><strong>自动财报扫描（不调用 AI）</strong><small>每日扫描财务资料，不消耗 AI 调用次数。关闭网页后仍继续。</small></span></label><label class="automation-switch"><input id="research-auto-ai" type="checkbox"><span><strong>自动 AI 证据整理（消耗调用次数）</strong><small>默认关闭，需同时开启自动财报扫描。开启后后台会为候选公司调用 AI，与手动深研共用每日上限。</small></span></label><label>本网站每日 AI 调用上限<input id="research-daily-limit" type="number" min="0" max="100" step="1" value="0"><small class="muted">0 表示暂停自动和手动 AI 调用，仍可扫描和补齐财务数据。已发出的请求失败也计次；次数不等于人民币费用上限。</small></label><label>单次深度研究轮数<select id="research-deep-rounds"><option value="3">最多 3 轮</option><option value="6" selected>最多 6 轮</option></select><small class="muted">6 轮分别研究六类主题，3 轮合并整理。新任务使用保存后的设置；已保存报告和进行中的任务保留原轮数。</small></label></div><p class="small muted">财报扫描与自动 AI 分开控制。关闭自动 AI 只停止继续安排调用；已提交任务可单独停止。手动研究也受本网站每日上限约束，调整上限不会改变已用次数。</p><details class="research-provider"><summary>AI 服务连接</summary><p class="small muted">配置后可使用 AI 证据整理，展示原文与待核查问题，不形成完整公司结论。DeepSeek 需要自己的 API 密钥，OpenAI 密钥不能通用；如账户余额不足，需先充值。密钥仅提交到当前服务器，保存后不会回显。同一服务留空保留密钥；更换服务地址会清除旧密钥。</p><div class="research-provider-grid"><label>服务类型<select id="research-provider"><option value="deepseek" selected>DeepSeek</option><option value="openai">OpenAI</option><option value="openai_compatible">其他已支持的兼容配置</option></select></label><label>模型名称<input id="research-model" type="text" maxlength="100" autocomplete="off" value="deepseek-v4-pro" placeholder="填写服务支持的模型"></label><label class="span-two">服务地址<input id="research-base-url" type="url" maxlength="300" autocomplete="off" value="https://api.deepseek.com/v1" placeholder="https://api.deepseek.com/v1"></label><label class="span-two">API 密钥<input id="research-api-key" type="password" maxlength="512" autocomplete="new-password" placeholder="留空保留已保存的密钥"></label></div><p id="research-key-state" class="small muted"></p></details><div class="research-settings-actions"><p id="research-settings-message" class="small muted" role="status"></p><button id="research-save" class="button secondary" type="submit">保存研究设置</button></div></form></details>
+        <div class="research-list-heading"><div><span class="eyebrow">THE SHORTLIST</span><h3>公司观察清单</h3></div><button id="research-refresh" class="text-button" type="button" aria-describedby="research-refresh-help research-refresh-state">读取服务器结果 ↻</button></div>
+        <p id="research-refresh-help" class="small muted research-refresh-note">读取服务器结果只更新页面显示；需要重新获取财报与行情，请使用“更新全市场资料”。</p><p id="research-refresh-state" class="small research-refresh-note" role="status" aria-live="polite" hidden></p>
+        <div class="research-tabs" role="tablist" aria-label="公司研究清单"><button id="research-tab-all" class="research-tab" type="button" role="tab" aria-selected="true" aria-controls="research-list-panel" tabindex="0">全部公司</button><button id="research-tab-library" class="research-tab" type="button" role="tab" aria-selected="false" aria-controls="research-list-panel" tabindex="-1"><span>已深度研究</span><span id="research-library-count" data-i18n-skip>（—）</span></button></div>
+        <div id="research-list-panel" role="tabpanel" aria-labelledby="research-tab-all">
+        <div class="panel research-filters"><label class="research-search">搜索公司<input id="research-query" type="search" placeholder="公司名称或证券代码" autocomplete="off"></label><label>行业<select id="research-industry"><option value="">全部行业</option></select></label><label id="research-sort-control">排序<select id="research-sort" aria-describedby="research-sort-description"><option value="dynamic" selected>同行参考从高到低</option><option value="quality">原初筛从高到低</option><option value="risk">财务风险优先</option><option value="valuation">市盈率 PE 升序</option><option value="code">证券代码</option></select></label><label id="research-candidate-control" class="research-checkbox"><input id="research-candidate" type="checkbox">只看候选公司</label></div>
+        <p id="research-sort-description" class="small muted research-sort-description" role="status">当前排序：同行财务参考，从高到低；暂不可比较的公司排在后面。</p>
+        <div class="research-list-note"><p id="research-matched" class="small muted" role="status"></p><span id="research-list-hint" class="small muted">缺资料与专项行业暂不参与通用评分</span></div>
+        <div id="research-companies" class="research-company-grid"></div><button id="research-more" type="button" class="button secondary research-more" hidden>显示更多公司</button>
+        </div>
+      </section>
+
+      <section class="page" id="page-accounts" hidden>
+        <div class="simulation-modes panel" aria-label="选择模拟方式">
+          <div><span class="eyebrow">历史回放</span><h2>从你选定的日期开始</h2><p>按原策略的已确认行情回放历史，也能继续跟踪后续数据。是否自动补跑、持续推进，沿用全局自动模拟与账户暂停设置。</p></div>
+          <div><span class="eyebrow">从现在开始 · 原D0 / 周线择债</span><h3>D0 前瞻模拟</h3><p>原D0与D0I-BOND-WW周线择债分别独立记账。从手动启动时刻向前等待有效报价，不补记启动前成交；新账户默认停止。</p><button type="button" class="button secondary" data-goto="realtime-paper">查看 D0 前瞻模拟</button></div>
+        </div>
+        <div class="section-heading"><div><h2>每种想法，都有自己的账本。</h2><p>各市场、各策略组账户分别保存。自动模拟按原策略确认周期记账，切换页面不会触发交易。</p></div><div class="button-row"><button id="deleted-accounts" class="button secondary">已删除账户</button><button id="import-account" class="button secondary">导入备份</button><button id="new-account" class="button primary">＋ 建立历史回放账户</button></div></div>
+        <div id="account-groups" class="segment" role="group" aria-label="账户组"></div><p id="account-group-note" class="group-note"></p>
+        <p id="account-automation-summary" class="automation-account-summary"></p><div id="account-sync-note" class="sync-notice" role="status" hidden><span>后台已有新的账户进度，正在保留你的输入；离开输入框后会更新显示。</span><button id="apply-account-update" class="text-button" type="button">保留输入并更新</button></div>
+        <div class="account-layout"><aside class="account-list-panel"><div class="list-heading"><h3>我的账户</h3><button id="reload-accounts" class="icon-button" aria-label="重新读取账户">↻</button></div><div id="account-warnings"></div><div id="account-list"></div></aside><div id="account-detail" class="account-detail"><div class="panel empty-state"><span class="empty-symbol">▣</span><h3>从一个模拟账户开始</h3><p>选择已有账户，或新建账户开始记录。</p></div></div></div>
+        <input id="import-file" type="file" accept=".zip,.json" hidden>
+      </section>
+
+      <section class="page" id="page-realtime-paper" hidden data-i18n-skip></section>
+
+      <section class="page" id="page-compare" hidden>
+        <div class="section-heading"><div><h2>同一区间，比较不同选择。</h2><p>每次只比较同一组策略，结果保留对应区间、本金与执行口径。</p></div></div>
+        <div class="panel"><form id="compare-form" class="form-row"><label>策略组<select id="compare-group"></select></label><label>开始日期<input id="compare-start" type="date" required></label><label>结束日期<input id="compare-end" type="date" required></label><label>本金 / 元<input id="compare-capital" type="number" value="100000" min="1000" max="10000000000" step="any" required></label><button type="submit" class="button primary">运行比较</button></form><p id="compare-rule" class="small muted"></p></div>
+        <div id="comparison-result" class="panel empty-state"><span class="empty-symbol">≋</span><h3>先给比较设一个范围</h3><p>计算在后台进行，可以离开此页，再从任务记录查看结果。</p></div>
+      </section>
+
+      <section class="page" id="page-tasks" hidden>
+        <div class="section-heading"><div><h2>每一次运行，都可以回看。</h2><p>后台任务每 5 秒更新。停止在安全步骤生效，已保存的记录会保留。</p></div><button id="reload-tasks" class="button secondary">↻ 更新状态</button></div>
+        <div id="task-list" class="task-list"></div>
+      </section>
+      <footer class="main-footer"><span>简明 ETF · 研究与模拟</span><span>历史表现不代表未来收益</span></footer>
+    </main>
+  </div>
+
+  <nav id="mobile-navigation" class="mobile-navigation" aria-label="手机主导航" hidden>
+    <button class="nav-item" data-page="overview"><span aria-hidden="true">◈</span><span>总览</span></button>
+    <button class="nav-item" data-page="featured"><span aria-hidden="true">☆</span><span>策略</span></button>
+    <button class="nav-item" data-page="accounts"><span aria-hidden="true">▣</span><span>账户</span></button>
+    <button id="mobile-more" class="nav-item" aria-haspopup="dialog" aria-controls="more-dialog"><span aria-hidden="true">☰</span><span>更多</span></button>
+  </nav>
+  <dialog id="more-dialog" class="more-dialog" aria-labelledby="more-title"><div class="dialog-heading"><h2 id="more-title">全部功能</h2><button type="button" class="icon-button" data-close="more-dialog" aria-label="关闭全部功能">×</button></div><p id="more-location" class="small muted"></p><nav id="more-links" aria-label="全部功能"></nav></dialog>
+  <dialog id="create-dialog" class="form-dialog"><form id="create-form"><div class="dialog-heading"><div><span class="eyebrow">独立记账</span><h2>建立历史回放账户</h2></div><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label><button type="button" class="icon-button" data-close="create-dialog" aria-label="关闭新建账户">×</button></div><p class="small muted">从指定日期回放已确认行情，之后仍可接续新数据。若要从现在开始且不补跑历史，请使用 D0 前瞻模拟。</p><div class="form-grid"><label class="span-two">账户名称<input id="create-name" value="我的模拟账户" maxlength="40" autocomplete="off" required></label><label>策略组<select id="create-group"></select></label><label>历史回放起点<input id="create-start" type="date" required></label><label class="span-two">固定策略<select id="create-strategy"></select></label><label class="span-two">初始本金 / 元<input id="create-capital" type="number" min="1000" max="10000000000" value="100000" step="any" required></label></div><p id="create-note" class="small muted"></p><div class="create-review"><p id="create-review-text" role="status"></p><label class="confirm-choice"><input id="create-confirm" type="checkbox" required><span>我已确认策略、本金、起点，以及上述补跑和自动推进方式</span></label></div><button id="create-discard" type="button" class="text-button">放弃本次未提交输入，重新填写</button><p id="create-status" class="create-status" role="status" hidden></p><p id="create-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button secondary" data-close="create-dialog">关闭</button><button id="create-background" class="button secondary" type="button" hidden>收起并查看任务</button><button id="create-submit" class="button primary" type="submit">建立账户</button></div></form></dialog>
+  <dialog id="detail-dialog" class="detail-dialog"><div class="dialog-heading"><h2 id="detail-title">任务详情</h2><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label><button class="icon-button" data-close="detail-dialog" aria-label="关闭详情">×</button></div><div id="detail-body"></div></dialog>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  <dialog id="research-dialog" class="detail-dialog research-dialog"><div class="dialog-heading"><div><span class="eyebrow">COMPANY DOSSIER</span><h2 id="research-detail-title">公司研究</h2></div><button id="research-detail-close" class="icon-button" type="button" aria-label="关闭公司研究">×</button></div><div id="research-detail-body"></div></dialog>
+  <dialog id="research-deep-dialog" class="detail-dialog research-dialog research-deep-dialog" aria-labelledby="research-deep-title"><div class="dialog-heading"><div><span class="eyebrow">COMPANY DEEP RESEARCH</span><h2 id="research-deep-title">深度研究</h2></div><button id="research-deep-close" class="icon-button" type="button" aria-label="关闭深度研究">×</button></div><div id="research-deep-body" aria-live="polite"></div></dialog>
+  <div id="initial-loading" class="initial-loading"><span class="brand-mark" aria-hidden="true">↗</span><p>正在连接模拟交易工作台…</p></div>
+</body>
+</html>

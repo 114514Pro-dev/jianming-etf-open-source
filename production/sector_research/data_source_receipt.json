@@ -1,0 +1,27 @@
+{
+  "copied_at": "2026-10-06T06:29:58.953206+00:00",
+  "rows": [
+    {
+      "file": "data/market.json",
+      "original_path": "market.json",
+      "sha256": "d2191e6991b38e0650f745e594785056c0a9874a4fb97832b526e5c65c1b9dab",
+      "original_sha256": "d2191e6991b38e0650f745e594785056c0a9874a4fb97832b526e5c65c1b9dab",
+      "byte_identical": true
+    },
+    {
+      "file": "data/index_data.json",
+      "original_path": "index_data.json",
+      "sha256": "3dcf2abcc062f7cb3790fa5c3f3dbb4afae5443ab68c34b114869d1be4feff77",
+      "original_sha256": "3dcf2abcc062f7cb3790fa5c3f3dbb4afae5443ab68c34b114869d1be4feff77",
+      "byte_identical": true
+    },
+    {
+      "file": "data/verified_actions.json",
+      "original_path": "verified_actions.json",
+      "sha256": "efd6bacbf418dda2ecaba57507f3a2a8f17f0cdeeaeaadb71f9f6fb703432b99",
+      "original_sha256": "efd6bacbf418dda2ecaba57507f3a2a8f17f0cdeeaeaadb71f9f6fb703432b99",
+      "byte_identical": true
+    }
+  ],
+  "scope": "Original frozen inputs copied without changes; historical download vintage is not strict point-in-time verified."
+}

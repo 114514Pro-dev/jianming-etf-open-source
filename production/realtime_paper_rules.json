@@ -1,0 +1,372 @@
+{
+  "schema_version": 1,
+  "timezone": "Asia/Shanghai",
+  "rule_version": "CN_ETF_2026_07_06",
+  "effective_from": "2026-07-06",
+  "verified_through": "2026-10-13",
+  "verification_date_is_expiry": false,
+  "scope": "secondary_market_limit_order_estimation_only",
+  "tplus_definition": "secondary_market_buy_to_sell_delay_in_trading_days",
+  "price_limit_calculation": {
+    "anchor": "current_session_valid_previous_close_or_ex_reference",
+    "rounding": "ROUND_HALF_UP",
+    "minimum_tick": "0.001",
+    "unknown_anchor_action": "block"
+  },
+  "symbols": {
+    "sz159915": {
+      "name": "易方达创业板ETF",
+      "exchange": "SZSE",
+      "security_code": "159915",
+      "asset_type": "domestic_equity_etf",
+      "price_tick": "0.001",
+      "buy_qty_lot": 100,
+      "sell_qty_lot": 100,
+      "sell_odd_lot_policy": "whole_available_balance_only",
+      "sell_lot_policy_kind": "conservative_model",
+      "max_qty": 1000000,
+      "effective_from": "2026-07-06",
+      "verified_through": "2026-10-13",
+      "tplus": 1,
+      "limit_pct": "0.20",
+      "limit_pct_effective_from": "2020-08-24",
+      "sources": [
+        "SZSE_RULES_2026",
+        "SZSE_159915_LIMIT_2020",
+        "EFUNDS_159915"
+      ]
+    },
+    "sh512800": {
+      "name": "华宝中证银行ETF",
+      "exchange": "SSE",
+      "security_code": "512800",
+      "asset_type": "domestic_equity_etf",
+      "price_tick": "0.001",
+      "buy_qty_lot": 100,
+      "sell_qty_lot": 100,
+      "sell_odd_lot_policy": "whole_available_balance_only",
+      "sell_lot_policy_kind": "conservative_model",
+      "max_qty": 1000000,
+      "effective_from": "2026-07-06",
+      "verified_through": "2026-10-13",
+      "tplus": 1,
+      "limit_pct": "0.10",
+      "sources": [
+        "SSE_RULES_2026",
+        "FSFUND_512800",
+        "SSE_ETF_FAQ"
+      ]
+    },
+    "sh518880": {
+      "name": "华安黄金ETF",
+      "exchange": "SSE",
+      "security_code": "518880",
+      "asset_type": "gold_etf",
+      "price_tick": "0.001",
+      "buy_qty_lot": 100,
+      "sell_qty_lot": 100,
+      "sell_odd_lot_policy": "whole_available_balance_only",
+      "sell_lot_policy_kind": "conservative_model",
+      "max_qty": 1000000,
+      "effective_from": "2026-07-06",
+      "verified_through": "2026-10-13",
+      "tplus": 0,
+      "limit_pct": "0.10",
+      "sources": [
+        "SSE_RULES_2026",
+        "SSE_GOLD_ETF_GUIDE",
+        "HUAAN_518880_T0"
+      ]
+    },
+    "sh511010": {
+      "name": "国泰上证5年期国债ETF",
+      "exchange": "SSE",
+      "security_code": "511010",
+      "asset_type": "government_bond_etf",
+      "price_tick": "0.001",
+      "buy_qty_lot": 100,
+      "sell_qty_lot": 100,
+      "sell_odd_lot_policy": "whole_available_balance_only",
+      "sell_lot_policy_kind": "conservative_model",
+      "max_qty": 1000000,
+      "effective_from": "2026-07-06",
+      "verified_through": "2026-10-13",
+      "tplus": 0,
+      "limit_pct": "0.10",
+      "sources": [
+        "SSE_RULES_2026",
+        "SSE_BOND_ETF_GUIDE",
+        "SSE_511010_IDENTITY"
+      ]
+    }
+  },
+  "sessions": {
+    "supported_matching": [
+      {
+        "start": "09:30:00",
+        "end": "11:30:00"
+      },
+      {
+        "start": "13:00:00",
+        "end": "14:57:00"
+      }
+    ],
+    "interval_convention": "start_inclusive_end_exclusive",
+    "official_opening_auction": {
+      "start": "09:15:00",
+      "end": "09:25:00"
+    },
+    "official_closing_auction": {
+      "start": "14:57:00",
+      "end": "15:00:00"
+    },
+    "unsupported_matching_phases": [
+      "opening_auction",
+      "closing_auction",
+      "after_hours",
+      "block_trade",
+      "halt",
+      "unknown_calendar",
+      "outside_supported_session"
+    ],
+    "sources": [
+      "SSE_RULES_2026",
+      "SZSE_RULES_2026",
+      "SSE_CLOSING_CHANGE_2026"
+    ]
+  },
+  "calendar": {
+    "coverage_start": "2026-01-01",
+    "coverage_end": "2026-12-31",
+    "weekday_numbering": "Monday=0",
+    "regular_open_weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "closed_date_ranges_inclusive": [
+      [
+        "2026-01-01",
+        "2026-01-03"
+      ],
+      [
+        "2026-02-15",
+        "2026-02-23"
+      ],
+      [
+        "2026-04-04",
+        "2026-04-06"
+      ],
+      [
+        "2026-05-01",
+        "2026-05-05"
+      ],
+      [
+        "2026-06-19",
+        "2026-06-21"
+      ],
+      [
+        "2026-09-25",
+        "2026-09-27"
+      ],
+      [
+        "2026-10-01",
+        "2026-10-07"
+      ]
+    ],
+    "weekends_closed_even_if_national_workday": true,
+    "outside_coverage_action": "unknown_block_matching",
+    "covers_unscheduled_market_closures": false,
+    "next_sellable_day_requires_known_calendar": true,
+    "sources": [
+      "SSE_CALENDAR_2026",
+      "SZSE_CALENDAR_2026"
+    ]
+  },
+  "model": {
+    "id": "observed_new_trade_v1",
+    "kind": "simulation_assumption_not_exchange_execution",
+    "default_enabled": false,
+    "order_type": "LIMIT",
+    "time_in_force": "DAY",
+    "unknown_market_state_preserved": true,
+    "known_adverse_market_state_veto": true,
+    "authoritative_tradable_status_inferred": false,
+    "requires_two_post_submission_snapshots": true,
+    "baseline_snapshot_can_fill": false,
+    "baseline_source_time_must_not_precede_submission": true,
+    "snapshot_source_time_must_strictly_advance": true,
+    "cumulative_volume_and_amount_must_both_strictly_increase": true,
+    "source_semantics_and_units_must_be_verified": true,
+    "source_change_or_counter_reset_or_restart_requires_new_baseline": true,
+    "requires_same_symbol_source_trading_date": true,
+    "default_max_quote_age_seconds": 60,
+    "actual_source_field_named_quote_at_unless_trade_timestamp_verified": true,
+    "quote_growth_does_not_prove_current_liquidity_or_queue_position": true,
+    "fill_label": "根据公开报价估计的模拟成交",
+    "fill_price_source": "second_eligible_snapshot_last_price_subject_to_limit_and_explicit_cost_model",
+    "use_day_open_or_historical_bar_for_fill": false,
+    "synthetic_partial_liquidity_claims_allowed": false,
+    "at_price_limit_without_orderbook_policy": "wait",
+    "quantity_policy_note": "不得将累计成交量增量直接称为可供本账户成交的流动性。",
+    "verification_note": "上述资格是建模约束；官方来源没有认证第三方行情接口、网络时延或本模拟成交。"
+  },
+  "sources": {
+    "SSE_RULES_2026": {
+      "title": "上海证券交易所交易规则（2026年修订）",
+      "url": "https://www.sse.com.cn/lawandrules/sselawsrules2025/stocks/exchange/c/c_20260424_10816482.shtml",
+      "publisher": "上海证券交易所",
+      "published_on": "2026-04-24",
+      "effective_from": "2026-07-06",
+      "supports": [
+        "交易时段",
+        "买入单位及零股余额",
+        "单笔数量上限",
+        "基金价档",
+        "基金通常10%涨跌幅",
+        "当日回转品种",
+        "涨跌停价格取整及除息参考价"
+      ]
+    },
+    "SZSE_RULES_2026": {
+      "title": "深圳证券交易所交易规则（2026年修订）",
+      "url": "https://docs.static.szse.cn/www/lawrules/rule/trade/W020260424690713155663.pdf",
+      "publisher": "深圳证券交易所",
+      "published_on": "2026-04-24",
+      "effective_from": "2026-07-06",
+      "supports": [
+        "交易时段",
+        "买入单位及零股余额",
+        "基金价档",
+        "单笔数量上限",
+        "20%涨跌幅基金条件",
+        "当日回转品种",
+        "涨跌停价格取整"
+      ]
+    },
+    "SZSE_RULES_2026_NOTICE": {
+      "title": "关于发布《深圳证券交易所交易规则（2026年修订）》的通知",
+      "url": "https://www.szse.cn/www/lawrules/rule/stock/t20260424_620190.html",
+      "publisher": "深圳证券交易所",
+      "published_on": "2026-04-24",
+      "effective_from": "2026-07-06",
+      "supports": [
+        "深市现行规则生效日期"
+      ]
+    },
+    "SZSE_159915_LIMIT_2020": {
+      "title": "2020年8月24日涨跌幅限制比例提高至20%的基金名单",
+      "url": "https://docs.static.szse.cn/www/aboutus/trends/conference/W020200821767425488573.pdf",
+      "publisher": "深圳证券交易所",
+      "effective_from": "2020-08-24",
+      "supports": [
+        "159915个券20%涨跌幅"
+      ]
+    },
+    "EFUNDS_159915": {
+      "title": "易方达创业板ETF基金信息",
+      "url": "https://static.efunds.com.cn/html/fund/159915_fundinfo.htm",
+      "publisher": "易方达基金管理有限公司",
+      "supports": [
+        "159915产品身份",
+        "股票型",
+        "深圳证券交易所上市"
+      ]
+    },
+    "FSFUND_512800": {
+      "title": "华宝中证银行ETF招募说明书（更新）",
+      "url": "https://www.fsfund.com/webimages/upload2012/2025/07/04/7436d6ba-fdb8-4a0b-b824-0aecc5bd4b88/华宝中证银行交易型开放式指数证券投资基金招募说明书（更新）.pdf",
+      "publisher": "华宝基金管理有限公司",
+      "supports": [
+        "512800产品身份",
+        "上海证券交易所上市",
+        "适用上交所交易规则"
+      ]
+    },
+    "SSE_ETF_FAQ": {
+      "title": "上交所基金网站：ETF交易常见问题",
+      "url": "https://etf.sse.com.cn/fund/quertion/",
+      "publisher": "上海证券交易所",
+      "supports": [
+        "股票ETF实施T+1",
+        "部分债券及黄金ETF支持T+0",
+        "100份及0.001元"
+      ]
+    },
+    "SSE_GOLD_ETF_GUIDE": {
+      "title": "上海证券交易所黄金交易型开放式证券投资基金业务指南",
+      "url": "https://www.sse.com.cn/assortment/fund/etf/rules/c/c_20150911_3985190.shtml",
+      "publisher": "上海证券交易所",
+      "supports": [
+        "黄金ETF当日回转",
+        "买入100份",
+        "价档0.001元",
+        "10%涨跌幅"
+      ],
+      "note": "本旧指南中的交易时段不用于本模型，时段统一服从2026年现行交易规则。"
+    },
+    "HUAAN_518880_T0": {
+      "title": "华安易富黄金ETF实行二级市场T+0交易制度的提示性公告",
+      "url": "https://wap.huaan.com.cn/news/2013-07-29/175178_1.shtml",
+      "publisher": "华安基金管理有限公司",
+      "published_on": "2013-07-29",
+      "effective_from": "2013-07-29",
+      "supports": [
+        "518880产品身份及二级市场T+0"
+      ]
+    },
+    "SSE_BOND_ETF_GUIDE": {
+      "title": "上海证券交易所债券ETF业务指南",
+      "url": "https://www.sse.com.cn/lawandrules/guide/jjznlc/c/c_20200722_3986154.shtml",
+      "publisher": "上海证券交易所",
+      "published_on": "2013-02-08",
+      "supports": [
+        "现券申赎债券ETF当日回转",
+        "100份",
+        "0.001元",
+        "二级市场最大100万份",
+        "10%涨跌幅"
+      ],
+      "note": "网页路径含2020日期，正文标注2013-02-08；其中10万份上限属回购质押申报，不是普通竞价买卖。"
+    },
+    "SSE_511010_IDENTITY": {
+      "title": "关于同意申万宏源证券为上证5年期国债ETF提供主做市服务的公告",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/jjzssgg/c/c_20240926_10762410.shtml",
+      "publisher": "上海证券交易所",
+      "published_on": "2024-09-26",
+      "supports": [
+        "511010上证5年期国债ETF产品身份"
+      ]
+    },
+    "SSE_CALENDAR_2026": {
+      "title": "关于上海证券交易所2026年部分节假日休市安排的通知",
+      "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml",
+      "publisher": "上海证券交易所",
+      "published_on": "2025-12-22",
+      "supports": [
+        "2026年沪市计划休市日"
+      ]
+    },
+    "SZSE_CALENDAR_2026": {
+      "title": "关于2026年部分节假日休市安排的通知",
+      "url": "https://investor.szse.cn/disclosure/notice/general/t20251222_618087.html",
+      "publisher": "深圳证券交易所",
+      "published_on": "2025-12-22",
+      "supports": [
+        "2026年深市计划休市日"
+      ]
+    },
+    "SSE_CLOSING_CHANGE_2026": {
+      "title": "上交所修订发布《上海证券交易所交易规则》",
+      "url": "https://big5.sse.com.cn/site/cht/www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20260424_10816474.shtml",
+      "publisher": "上海证券交易所",
+      "published_on": "2026-04-24",
+      "effective_from": "2026-07-06",
+      "supports": [
+        "沪市基金收盘阶段自2026-07-06改为收盘集合竞价"
+      ]
+    }
+  }
+}

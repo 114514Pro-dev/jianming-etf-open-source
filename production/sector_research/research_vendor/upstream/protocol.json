@@ -1,0 +1,118 @@
+{
+  "study": "十板块评分策略：减少连带调仓与小额订单实验",
+  "version": "1.0",
+  "report_date": "2026-10-06",
+  "data_as_of": "2026-09-30",
+  "post_hoc_research": true,
+  "status": "Rules frozen before any new A/B performance run; history already seen in earlier studies, not unseen out-of-sample.",
+  "period": {
+    "start": "2024-04-01",
+    "end": "2026-09-30"
+  },
+  "fixed_periods": [
+    [
+      "2024-04-01",
+      "2025-06-30"
+    ],
+    [
+      "2025-07-01",
+      "2026-09-30"
+    ]
+  ],
+  "codes": [
+    "sh512800",
+    "sh512880",
+    "sz159928",
+    "sz159929",
+    "sh512480",
+    "sh512720",
+    "sh512660",
+    "sh515220",
+    "sh512400",
+    "sz159611"
+  ],
+  "total_capital": 100000,
+  "models": [
+    "HOLD",
+    "INDEPENDENT_TRIX",
+    "SCORE",
+    "MATCH_EQUAL",
+    "A_SCORE",
+    "A_EQUAL",
+    "B_SCORE",
+    "B_EQUAL"
+  ],
+  "unchanged": [
+    "Raw data, causal TRIX12/9, economic price-volume scores and four 25% components",
+    "SCORE weights .20*score/100 on eligible funds, otherwise zero; MATCH equal splits same sum; targets capped .20",
+    "Cash accounting, real corporate actions, 100-share lots, next-open adverse fills and no leverage",
+    "No probability, fundamentals, news, market filter or score optimization"
+  ],
+  "execution_A": {
+    "scheduled": "Initialization and decision-date Friday: reassess all eligible positions to original targets. Friday means actual Friday, not a replacement last trading day before a Friday holiday.",
+    "other_days": "Only exit currently held ineligible funds and enter newly eligible funds that currently have zero shares. Do not resize other holdings. Detect current ineligible holdings every allowed day, including a retry after missing execution quotes.",
+    "entry_failure": "Entry is attempted on initialization, new-eligibility event, or Friday. Any missing/insufficient-cash/partial entry is reconsidered only at next Friday or a new eligibility event; no daily top-up.",
+    "exit_failure": "If open is absent/nonpositive or day amount nonpositive defer. Retry daily while signal remains ineligible. If eligibility recovers before executable exit, cancel exit and keep current shares.",
+    "cash": "Sell allowed orders first. All buys use simultaneous proportional budgets including fees; no code-order priority. Leftover cash stays cash. Never sell valid incumbents on an event-only day to fund an entrant.",
+    "timing": "Known NAV and decision weights are exact Decimal decision-date closing NAV/security values, or capital/zero holdings before inception. Corporate actions occur before open, with delayed dividends according to unchanged original engine. Quantity uses executable open, never its closing price.",
+    "delay": "delay=2 uses two-market-day-old signal, eligibility comparison, Friday date, known NAV and known decision weights; first day remains uninvested, matching original convention."
+  },
+  "execution_B": {
+    "weight_band": 0.02,
+    "minimum_optional_notional": 5000,
+    "applies": "Only scheduled Friday optional resizing of currently held, TRIX-eligible positions, including score-zero reductions. Existing-position classification uses actual pre-execution shares. Initialization, zero-position entries and mandatory ineligible exits are exempt.",
+    "band": "Absolute target minus exact decision-close position weight >= 0.02 of whole-account NAV. Equality passes. This is 2 percentage points of NAV, not 2% of target.",
+    "notional": "After rounding to lots, sell order amount or final cash-budgeted buy amount at its adverse execution price must be >=5000 yuan. Equality passes. Below threshold means cancel entire optional order.",
+    "order": "Filter optional sells before computing available cash. Filter buys by band before proportional budgeting; after budgeting filter buy notional. Freed cash from rejected buys remains cash, no redistribution/rebudget loop.",
+    "rationale": "Simple predeclared execution controls, not an estimated alpha/cost break-even. 5000 makes the assumed 5 yuan commission 0.1% one-way before slippage. Neither number has been optimized or shown economically optimal.",
+    "stress": "The same 0.02 and 5000 apply in every scenario, including double cost and zero minimum commission."
+  },
+  "costs": {
+    "commission_rate": 0.0003,
+    "minimum_commission": 5,
+    "slippage_rate": 0.0002,
+    "minimum_slippage_ticks": 1,
+    "tick": 0.001,
+    "cash_interest": 0,
+    "cash_rounding": "Decimal ROUND_HALF_UP to cents"
+  },
+  "experiments": {
+    "primary": {},
+    "double_cost": {
+      "commission_rate": 0.0006,
+      "minimum_commission": 10,
+      "slippage_rate": 0.0004,
+      "minimum_slippage_ticks": 2
+    },
+    "extra_execution_day": {
+      "delay": 2
+    },
+    "first_half": {
+      "start": "2024-04-01",
+      "end": "2025-06-30"
+    },
+    "second_half": {
+      "start": "2025-07-01",
+      "end": "2026-09-30"
+    },
+    "no_minimum_commission": {
+      "minimum_commission": 0
+    }
+  },
+  "total_cases": 48,
+  "evaluation": [
+    "Net CAGR, marked terminal NAV, max drawdown, actual average exposure and top3 concentration",
+    "Trades, commissions, modeled slippage, turnover, optional rejected orders, industry profit contribution",
+    "Same-execution SCORE versus equal target total allocation; actual exposure may differ due to drift/gates/cash",
+    "Report every prespecified result; do not retune after seeing returns; cost and position changes are not additive causal effects"
+  ],
+  "limits": [
+    "About 2.50 years common score evaluation, not ten years; frozen data ends September 30",
+    "Surviving fixed ETF pool; already observed history; thresholds inspired by prior diagnosis",
+    "Minimum 5 yuan commission not confirmed for users broker; zero-minimum scenario is conditional, not a claim about real charges",
+    "Next open sell/buy availability and ticks modeled on daily bars, not demonstrated real fills; no new turnover capacity cap",
+    "Target20% may be exceeded by actual drift; Friday holiday skips scheduled review",
+    "Old corporate-action evidence and source revision limits retained; no probability refit or improved probability claim",
+    "No app integration, real-account operation, cloud deployment or live monitoring"
+  ]
+}

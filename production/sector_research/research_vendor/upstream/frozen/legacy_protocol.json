@@ -1,0 +1,47 @@
+{
+  "study":"十板块独立择时与固定资金组合基础研究",
+  "version":"1.0",
+  "research_date":"2026-10-05",
+  "period":{"start":"2022-04-01","end":"2026-09-30"},
+  "start_rule":"First calendar quarter start after youngest ETF listing with at least 53 actual prior quote rows in every ETF; 2022-04-01 verified as 55 prior quotes for youngest. If not satisfied use next quarter start, never choose by return.",
+  "codes":["sh512800","sh512880","sz159928","sz159929","sh512480","sh512720","sh512660","sh515220","sh512400","sz159611"],
+  "identities":{
+    "sh512800":{"sector":"银行","name":"华宝中证银行ETF","code":"512800"},
+    "sh512880":{"sector":"证券","name":"国泰中证全指证券公司ETF","code":"512880"},
+    "sz159928":{"sector":"主要消费","name":"汇添富中证主要消费ETF","code":"159928"},
+    "sz159929":{"sector":"医药卫生","name":"汇添富中证医药卫生ETF","code":"159929"},
+    "sh512480":{"sector":"半导体","name":"国联安中证全指半导体产品与设备ETF","code":"512480"},
+    "sh512720":{"sector":"计算机","name":"国泰中证计算机主题ETF","code":"512720"},
+    "sh512660":{"sector":"军工","name":"国泰中证军工ETF","code":"512660"},
+    "sh515220":{"sector":"煤炭","name":"国泰中证煤炭ETF","code":"515220"},
+    "sh512400":{"sector":"有色金属","name":"南方中证申万有色金属ETF","code":"512400"},
+    "sz159611":{"sector":"电力公用事业","name":"广发中证全指电力公用事业ETF","code":"159611"}
+  },
+  "total_capital":100000,
+  "sleeve_capital":10000,
+  "capital_rules":["10 initially equal cash sleeves; each invests only its own ETF or cash.","No cross-sleeve lending, reallocation, rebalancing, leverage, shorts, contributions or withdrawals.","Profits, losses and dividend cash remain in each sleeve; sector weights drift.","Standalone controls separately start with full 100000 CNY, to compare same total capital accounting for minimum fees."],
+  "signals":{
+    "TRIX":{"n":12,"signal_sma":9,"warmup":45,"rule":"entry on eligible upcross, exit on eligible downcross; prior state carried otherwise; initial state false"},
+    "SKDJ":{"n":9,"m":3,"warmup":18,"rule":"9-row raw RSV, EMA3 twice for K, SMA3 for D; eligible upcross enters, downcross exits; no thresholds or fixed maximum holding"},
+    "prior_quotes":"Use all frozen available real quote history per asset; 53 is eligibility floor not truncation. Four reused ETF histories begin at their listing; six newly collected series begin 2021-01-04 or later listing. No fabricated observations for missing days.",
+    "corporate_action_adjustment":"Causal forward continuity adjustment only from effective ex-date: split factor*=ratio, cash dividend factor*=previous raw close/(previous raw close-d). Apply same factor to OHLC. This is not a dividend reinvestment performance series. No future adjustment rewrites earlier indicator state.",
+    "execution":"Signals from last completed actual quote at or before previous market day; execute next market day real raw open. Delayed stress uses two-market-day lag and delays initial HOLD entry one day too."
+  },
+  "costs":{"commission_rate":0.0003,"minimum_commission":5,"slippage_rate":0.0002,"minimum_slippage_ticks":1,"tick":0.001,"slippage_rule":"max(open*rate,tick*ticks), buy rounded up and sell down to tick","lot":100,"cash_rounding":"Decimal ROUND_HALF_UP to CNY fen","cash_interest":0},
+  "corporate_actions":{
+    "dividend_entitlement":"Registration-day end-of-day actual holdings; record only, no extra equity on record day.",
+    "ex_date":"Before trading recognize locked original eligible shares * original per-share distribution as receivable. Later sales or splits do not change locked entitlement.",
+    "payment":"Published payment trading day credits cash AFTER trading, usable next market open. Non-market payment credits before the next market session. Receivable is reduced exactly once; payment itself does not increase equity.",
+    "split":"On official ex-date, multiply shares by verified integer ratio and divide stale per-share mark. Do not use supplier registration date as ex-date.",
+    "concurrency":"Abort preparation if same asset has cash dividend and split on same ex-date; require explicit unit review.",
+    "hold_dividends":"HOLD/HALF_HOLD buy once and retain dividend cash; timing models do not top up while holding but can spend available dividends at next entry.",
+    "terminal":"No forced liquidation; equity includes valid unpaid dividends as receivables; no final exit cost charged."
+  },
+  "missing_quotes":"No fill on missing/nonpositive-amount bar; prior known close marks with appropriate ex-action adjustment, marked stale. Present main interval has no missing bars.",
+  "models":["HOLD","TRIX","SKDJ","HALF_HOLD"],
+  "experiments":{"primary_sleeves":40,"double_cost_sleeves":30,"double_cost":{"commission_rate":0.0006,"minimum_commission":10,"slippage_rate":0.0004,"minimum_slippage_ticks":2},"extra_day_sleeves":30,"extra_day_delay":2,"fixed_period_sleeves":60,"standalone_full_capital_cases":30,"total_ledger_cases":190,"total_aggregate_portfolios":16},
+  "fixed_periods":[["2022-04-01","2024-06-28"],["2024-07-01","2026-09-30"]],
+  "fixed_period_rule":"Fresh capital at each period start with pre-period legitimate indicator state carried; periods are equal calendar half-years, not selected turning points.",
+  "metrics":["daily aggregated equity then calendar-year CAGR","maximum drawdown and recovery","annual volatility","average exposure","trade costs and turnover","sector profit contributions","daily covariance risk contribution","all-sample and down-month correlation","120-market-day rolling correlation every 20 days","same-capital single-sector controls"],
+  "limitations":["Current surviving funds selected in 2026; not a historical full-market available universe.","Previous related technical results already observed; no truly unseen out-of-sample test.","Independent trade decisions do not imply independent price risk; no low correlation claim assumed.","Daily open and explicit slippage do not certify executable depth. Check order size against full-day amount and modeled fills outside daily range.","No fundamental filter, per-sector parameter optimization or future-best-sector selection in this experiment.","Cash distribution evidence source tiers and unexhausted negative-action archives must be disclosed."]
+}

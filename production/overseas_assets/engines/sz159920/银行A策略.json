@@ -1,0 +1,24 @@
+{
+  "schema": "bank.etf.research.strategy.v1",
+  "app_compatibility": "独立研究复算格式，不能直接载入牛熊50周实验室v1.1",
+  "data_file_sha256": "65cd500da56574218c68a7bf660dda37a1c4aa5f9a8314b40d4eafa02b7dfb30",
+  "spec": {
+    "family": "sk_rebound",
+    "frame": "D",
+    "sk": [
+      9,
+      5
+    ],
+    "tr": null,
+    "ma": 0,
+    "volume": false,
+    "hold": 20,
+    "stop": 0,
+    "trail": 0,
+    "defense": "gold",
+    "low": 40,
+    "high": 70,
+    "name": "SKDJ低位反转 · 日线 · SKDJ(9,5) · K≤40／退出K≥70 · 最多20交易日 · 空仓配黄金",
+    "id": "sk_rebound_c04b85a61d97"
+  }
+}

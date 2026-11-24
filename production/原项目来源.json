@@ -1,0 +1,117 @@
+[
+  {
+    "source": "suite_book.py",
+    "copy": "suite_book.py",
+    "sha256": "9019d285783a48a27abad5dcee28dbc4f0bc36c84c934bbc9e785020e613fcf5"
+  },
+  {
+    "source": "suite_analysis.py",
+    "copy": "suite_analysis.py",
+    "sha256": "a8ee41d5c29808e7ade47790c25d8c8c8ce88a113dff06c308659274b33bb049"
+  },
+  {
+    "source": "bank_model.py",
+    "copy": "bank_model.py",
+    "sha256": "0b2c07a58d66e8c35c8efb4cf75a09dd5d7c3edbd8636be63547ff48a1530f6f"
+  },
+  {
+    "source": "automation.py",
+    "copy": "automation.py",
+    "sha256": "c66a279bb52ee2aad1a419e1f0fe00b3c4248cd0504c9a70bc2bcd00e5dc73c6"
+  },
+  {
+    "source": "trade_book.py",
+    "copy": "trade_book.py",
+    "sha256": "1b0cbab8549dd636d2e26235767277e23b5cafb04da8cba6a61e2f10b0c1e02e"
+  },
+  {
+    "source": "dynamic_allocation.py",
+    "copy": "dynamic_allocation.py",
+    "sha256": "9da999ad28e42d0cee312ddab6520a5bb8bb4fec8ee0c00018acb6ee316487f3"
+  },
+  {
+    "source": "staged_signals.py",
+    "copy": "staged_signals.py",
+    "sha256": "c2c2867c6678dd6ffb49ffb4dc337a5f6a4ff376720816266ddf3fc2a7c1eabb"
+  },
+  {
+    "source": "combo_engine.py",
+    "copy": "combo_engine.py",
+    "sha256": "59fc3718d7865b4276e25c034731b97863448cc2eb4d620d35f5098060875b71"
+  },
+  {
+    "source": "strategy_engine.py",
+    "copy": "strategy_engine.py",
+    "sha256": "1f7eb1c4c665cbf89698ce16316a0c74c30e29680587da45f6c06240ed617939"
+  },
+  {
+    "source": "portfolio_account.py",
+    "copy": "portfolio_account.py",
+    "sha256": "e3c475e539d056e70cfd6e4388de326a1abaf72c6facda5e9a0e1ca868deb11e"
+  },
+  {
+    "source": "allocation.py",
+    "copy": "allocation.py",
+    "sha256": "c8b1b278c3a3d85f5bf72360791fd9343e5af2f743c136fd6f8a067b7af9033a"
+  },
+  {
+    "source": "etf_forecast.py",
+    "copy": "etf_forecast.py",
+    "sha256": "e9ae59293bb2048d062a2d33ade864bb0bb11af3155003bdbddd50d141376336"
+  },
+  {
+    "source": "suite_paths.py",
+    "copy": "suite_paths.py",
+    "sha256": "da3fb9cc6e5623829c135b6da0eece08357cbc08faa45a8a5017a03f4ce5aade"
+  },
+  {
+    "source": "bear_gold.py",
+    "copy": "engine_snapshot\\bear_gold.py",
+    "sha256": "31c98be04bb7a156613d248d1ed915595af158a0cf9ef659e6e7644685d5587b"
+  },
+  {
+    "source": "bear_gold_assets.py",
+    "copy": "engine_snapshot\\bear_gold_assets.py",
+    "sha256": "27bf86efbf1243624fded11da39bda5449334dbd3011b67b2a914f6e3e89f126"
+  },
+  {
+    "source": "bear_gold_kernel.py",
+    "copy": "engine_snapshot\\bear_gold_kernel.py",
+    "sha256": "29d8fbb4ff16b31ca85ec3fa502355e3207223775de85dbf09d349388791d25d"
+  },
+  {
+    "source": "skdj.py",
+    "copy": "engine_snapshot\\skdj.py",
+    "sha256": "95ef0e7478a29eca9c9f7be75d3f7a1235e07c4f41c5de34cd19851624e7dbd8"
+  },
+  {
+    "source": "bear_gold_reference.json",
+    "copy": "engine_snapshot\\bear_gold_reference.json",
+    "sha256": "30342427ea87802dd037d439e57023e9989140edb608f9528ad108b488afe187"
+  },
+  {
+    "source": "原创业板策略.json",
+    "copy": "原创业板策略.json",
+    "sha256": "ed0f107d30c57a27317cb965048be5123756dd1e1ca8bf2b054191b4f760ad4e"
+  },
+  {
+    "source": "银行A策略.json",
+    "copy": "银行A策略.json",
+    "sha256": "5644154ebc7f4db0f87da1775a68aa0a6a2871d11cf44768b0eca05fc090b52d"
+  },
+  {
+    "source": "银行B策略.json",
+    "copy": "银行B策略.json",
+    "sha256": "719c2ad9fab8f39942015d0960a0734e35b4b5fc9ff40fdd2eab2b5ca41e491a"
+  },
+  {
+    "source": "app_icon.ico",
+    "copy": "app_icon.ico",
+    "sha256": "dc0aae255542f7cf0769fbfb03cb9c87fffb03fbcd3f0bec13bf4d4ce29dae3b"
+  },
+  {
+    "source": "frozen_market.json",
+    "copy": "初始行情.json",
+    "sha256": "f812ee280b5e4a81363018d96666db5ea768b16b3655265eed54edaf9dafcb2a"
+  }
+]

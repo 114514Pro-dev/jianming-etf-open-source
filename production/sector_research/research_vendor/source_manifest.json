@@ -1,0 +1,111 @@
+{
+  "schema": "sector-capital.vendor-provenance.v1",
+  "files": [
+    {
+      "file": "improved_engine.py",
+      "original_source": "improved_engine.py",
+      "source_sha256": "9486fd4316fc2148cef638d1cfe1a47ce58bf6ae696ee0947a9fe87776705515",
+      "runtime_sha256": "6ac104d76eca2f061718e8192bd78c361ac0b7d07ccc09d767ecff3103c46863",
+      "adaptations": [
+        {
+          "from": "sys.path.insert(0, str(FROZEN))\nimport portfolio_backtest as original",
+          "to": "from . import portfolio_backtest as original"
+        }
+      ],
+      "newline_normalized": true
+    },
+    {
+      "file": "portfolio_backtest.py",
+      "original_source": "portfolio_backtest.py",
+      "source_sha256": "79514548bf0156eecf2591b8a3f45192f2a26305dba1bab891196a5d247b8ffa",
+      "runtime_sha256": "bbd72355af3995de9ef7d7d6bc240c15e699bfb5c6d86d4e1626f8ec56325147",
+      "adaptations": [
+        {
+          "from": "import legacy_engine as legacy",
+          "to": "from . import legacy_engine as legacy"
+        }
+      ],
+      "newline_normalized": true
+    },
+    {
+      "file": "legacy_engine.py",
+      "original_source": "legacy_engine.py",
+      "source_sha256": "dc412a7903188eb921ea7ccf7ad5cc8771f4dc79bb7d24e1878a645b6dcb534b",
+      "runtime_sha256": "7b6cec92bb5abd22bcd5bd87883b216e14b8d2dff138810d44d0ba764f3b2d30",
+      "adaptations": [
+        {
+          "from": "sys.path.insert(0,str(ROOT/'vendor'))\nimport indicators",
+          "to": "from . import indicators"
+        }
+      ],
+      "newline_normalized": true
+    },
+    {
+      "file": "features_model.py",
+      "original_source": "features_model.py",
+      "source_sha256": "778d945406c2511ae8a28432e43bc9bf0f599554b6b4113b5c4cc9b7af8be358",
+      "runtime_sha256": "c8eb6f6b7457c1e41cfefc80c98724d3d639acc21a393ab8909fc2c41b8c8de0",
+      "adaptations": [
+        {
+          "from": "from legacy_engine import Study",
+          "to": "from .legacy_engine import Study"
+        }
+      ],
+      "newline_normalized": true
+    },
+    {
+      "file": "market_filter.py",
+      "original_source": "backtest.py",
+      "source_sha256": "8889d3b07aebdc797c44ab1eae7039fa57bc0e9b5d6d4e0ca77b2bd4ec4a6088",
+      "runtime_sha256": "607b9a8bee32746b8ac5759f78bda8158e55ed016a4db3d2abd921e5c30576fc",
+      "adaptations": [
+        {
+          "from": "sys.path.insert(0,str(ROOT/'vendor'))\nimport indicators",
+          "to": "from . import indicators"
+        }
+      ],
+      "newline_normalized": true
+    },
+    {
+      "file": "indicators.py",
+      "original_source": "indicators.py",
+      "source_sha256": "695f979415b3653a55fc055eeba620e55db13b27591ed0bfb0369a5ca16084c6",
+      "runtime_sha256": "695f979415b3653a55fc055eeba620e55db13b27591ed0bfb0369a5ca16084c6",
+      "adaptations": [],
+      "newline_normalized": false
+    },
+    {
+      "file": "protocol.json",
+      "original_source": "protocol.json",
+      "source_sha256": "5d5a9efe51f07f712efb5e384b683f21269d84da798fce439d89b24435f95529",
+      "runtime_sha256": "5d5a9efe51f07f712efb5e384b683f21269d84da798fce439d89b24435f95529",
+      "adaptations": [],
+      "newline_normalized": false
+    },
+    {
+      "file": "frozen/protocol.json",
+      "original_source": "protocol.json",
+      "source_sha256": "d11a10fe7e39033802f811b7fb29746038b3db461ae916c73bbbcd7c9a2cc58a",
+      "runtime_sha256": "d11a10fe7e39033802f811b7fb29746038b3db461ae916c73bbbcd7c9a2cc58a",
+      "adaptations": [],
+      "newline_normalized": false
+    },
+    {
+      "file": "frozen/legacy_protocol.json",
+      "original_source": "legacy_protocol.json",
+      "source_sha256": "2d56c79be513e6aaffa4a0b78aae5d54d27a7738b6999d28540a15c9bbabd9d4",
+      "runtime_sha256": "2d56c79be513e6aaffa4a0b78aae5d54d27a7738b6999d28540a15c9bbabd9d4",
+      "adaptations": [],
+      "newline_normalized": false
+    },
+    {
+      "file": "filter/protocol.json",
+      "original_source": "protocol.json",
+      "source_sha256": "43e6c97a33d330dc6b80895f0bed214703d2604d1598f4efb732e5ebb6586dce",
+      "runtime_sha256": "43e6c97a33d330dc6b80895f0bed214703d2604d1598f4efb732e5ebb6586dce",
+      "adaptations": [],
+      "newline_normalized": false
+    }
+  ],
+  "rules": "Only imports and line endings adapted for namespace isolation. Mathematical, timing, accounting and execution formulas are unchanged."
+}

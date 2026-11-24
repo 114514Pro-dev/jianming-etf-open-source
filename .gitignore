@@ -1,0 +1,12 @@
+.env
+.env.*
+*.pem
+*.key
+*.sqlite*
+*.db
+*.py[cod]
+__pycache__/
+.venv/
+node_modules/
+outputs/
+runtime-data/

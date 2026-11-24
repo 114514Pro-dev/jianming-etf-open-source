@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>市场环境与风险 · 模块01</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/research-common.css"><script src="/research-common.js" defer></script><script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="topline"><div class="page-width"><span class="brand"><span class="brand-mark" aria-hidden="true">M</span> ETF 研究工作台</span><span class="readonly">独立模块 · 只读参考</span></div></div>
+  <main class="page-width">
+<nav class="module-nav" aria-label="研究模块"><a href="/market" aria-current="page">01 市场环境</a><a href="/opportunities">02 板块机会</a><a href="/capital">03 资金与执行</a></nav>
+    <header class="page-header">
+      <div><p class="eyebrow">模块 01 / MARKET ENVIRONMENT</p><h1>市场环境与风险</h1><p class="lead">先确认资料时效，再看趋势、板块参与和风险变化。</p></div>
+      <div class="edition">已发布资料研究 <strong>v2</strong><small>行情管理独立核对 · 页面只读</small></div>
+    </header>
+<section class="update-widget" data-update-widget aria-label="全局行情资料管理"></section>
+
+    <section class="timeliness" id="timeliness" aria-labelledby="timelinessTitle">
+      <div class="timeliness-heading"><h2 id="timelinessTitle">先看数据日期</h2><span class="status-pill" id="freshnessLabel">尚未读取</span></div>
+      <div class="date-grid">
+        <div><span class="meta-label">本次行情日期</span><strong id="snapshotDate">—</strong><small id="snapshotMode">等待资料</small></div>
+        <div><span class="meta-label" id="expectedDateLabel">应有交易日期</span><strong id="expectedDate">—</strong><small>以已核验交易日历判断</small></div>
+        <div><span class="meta-label">指数 / 最早板块日期</span><strong class="dates-pair" id="sourceDates">— / —</strong><small id="calendarUntil">日历核验范围：—</small></div>
+      </div>
+      <div class="freshness-notes" id="freshnessNotes"><p>行情日期与检查时间分别记录；重新检查不会产生新的行情数据。</p></div>
+      <div class="timestamps"><span id="frozenAt">指数来源冻结时间：—</span><span id="calculatedAt">本次计算时间：—</span></div>
+    </section>
+
+    <section class="toolbar" aria-label="查看范围">
+      <label class="date-picker" for="dateSelect"><span>选择观察日期</span><select id="dateSelect"><option value="">最新可用资料</option></select></label>
+      <div class="toolbar-buttons"><button id="latestButton" type="button">回到最新</button><button id="refreshButton" type="button" class="button-primary">重新检查时效</button><button id="exportButton" type="button" disabled>导出 JSON</button></div>
+      <p class="toolbar-help">“最新”指资料中的最后日期。重新检查仅核对当前时效，不下载新行情。</p>
+    </section>
+    <div id="datesError" class="message error" role="alert" hidden></div>
+    <div id="requestMessage" class="message loading" role="status" aria-live="polite">正在读取市场资料…</div>
+    <div id="warnings" class="message warning" hidden></div>
+
+    <section class="reading-order" aria-label="建议使用顺序"><span class="reading-title">使用顺序</span><p><b>① 日期是否足够新</b><span>→</span><b>② 指数方向</b><span>→</span><b>③ 固定池参与有无扩散</b><span>→</span><b>④ 波动与回落</b></p><small>这些是市场状态描述；本页尚不产生交易规则，需与自己的策略条件分别判断。</small></section>
+
+    <section class="metric-grid" aria-label="四项市场观察" id="metrics" aria-busy="true">
+      <article class="metric-card"><div class="card-heading"><h2>趋势</h2><span class="card-number">01</span></div><p class="metric-value text-value" id="trendLabel">—</p><p class="metric-description">价格与均线的位置及变化</p><dl class="mini-values"><div><dt>指数收盘</dt><dd id="indexClose">—</dd></div><div><dt>20 / 60 / 120日均线</dt><dd id="movingAverages">—</dd></div><div><dt>20日均线近5日变化</dt><dd id="maChange">—</dd></div></dl></article>
+      <article class="metric-card"><div class="card-heading"><h2>固定十板块参与度</h2><span class="card-number">02</span></div><p class="metric-value" id="breadthValue">—</p><p class="metric-description" id="breadthDescription">达到原 TRIX 条件的板块数量</p><div class="breadth-track" aria-hidden="true"><span id="breadthFill"></span></div><dl class="mini-values"><div><dt>较前5个市场日</dt><dd id="breadthDelta">—</dd></div><div><dt>比较日期</dt><dd id="breadthPrevious">—</dd></div></dl><p class="card-caution">固定 ETF 池的观察，不代表全市场宽度。</p></article>
+      <article class="metric-card"><div class="card-heading"><h2>20日年化波动</h2><span class="card-number">03</span></div><p class="metric-value" id="volatilityValue">—</p><p class="metric-description" id="volatilityLabel">近期变化幅度的年化表示</p><dl class="mini-values"><div><dt>自身历史分位</dt><dd id="volatilityPercentile">—</dd></div><div><dt>有效历史样本</dt><dd id="volatilitySamples">—</dd></div></dl><p class="card-caution">高波动可能伴随上涨或下跌；低波动也不等于低风险。</p></article>
+      <article class="metric-card"><div class="card-heading"><h2>距60日收盘高点回落</h2><span class="card-number">04</span></div><p class="metric-value" id="drawdownValue">—</p><p class="metric-description">当前收盘距近期最高收盘的位置</p><div class="card-explanation">只衡量这段指数行情的回落。没有模拟账户的资金、买卖或成交成本。</div><p class="card-caution">这不是账户或策略的最大回撤。</p></article>
+    </section>
+
+    <section class="panel chart-panel" aria-labelledby="chartTitle">
+      <div class="panel-heading"><div><p class="section-kicker">价格背景 · 000985</p><h2 id="chartTitle">中证全指价格指数与均线</h2><p id="chartDateLabel" class="panel-subtitle">等待历史资料</p></div><div class="segment-control" role="group" aria-label="图表范围"><button type="button" data-limit="252" aria-pressed="true">近1年</button><button type="button" data-limit="756" aria-pressed="false">近3年</button></div></div>
+      <div class="chart-legend"><span><i class="legend-close"></i>收盘</span><span><i class="legend-ma20"></i>MA20</span><span><i class="legend-ma60"></i>MA60</span><span><i class="legend-ma120"></i>MA120</span></div>
+      <div id="chartWrap" class="chart-wrap"><div id="chartEmpty" class="empty-state">资料载入后显示指数曲线</div><svg id="priceChart" role="img" aria-label="市场指数收盘与20、60、120日均线" tabindex="0" hidden></svg><div id="chartTooltip" class="chart-tooltip" hidden></div></div>
+      <p class="chart-caption">近1年 / 近3年分别取最多252 / 756条市场记录，按交易记录排列，不是精确自然年。曲线描述指数价格，不是策略收益。移动指针或使用键盘左右键可逐日查看。</p>
+    </section>
+
+    <section class="panel sector-panel" aria-labelledby="sectorTitle">
+      <div class="panel-heading"><div><p class="section-kicker">参与度明细</p><h2 id="sectorTitle">十只 ETF 的原 TRIX 状态</h2><p class="panel-subtitle">条件成立仅表示原指标资格，不是买入指令；资料不足时单独标记。</p></div><span class="table-date" id="tableDate">—</span></div>
+      <p class="scroll-hint">小屏可横向滑动查看完整日期与说明。</p>
+      <div class="table-scroll"><table><thead><tr><th scope="col">板块 / ETF</th><th scope="col" class="numeric">收盘</th><th scope="col" class="numeric">TRIX</th><th scope="col" class="numeric">信号线</th><th scope="col">指标状态</th><th scope="col">资料日期</th><th scope="col">说明</th></tr></thead><tbody id="sectorRows"><tr><td colspan="7" class="empty-cell">等待资料</td></tr></tbody></table></div>
+    </section>
+
+    <details class="panel rules-panel"><summary><span><span class="section-kicker">核对依据</span><strong>规则、资料来源与使用边界</strong></span><span class="details-indicator" aria-hidden="true">+</span></summary>
+      <div class="rules-content"><div class="rule-grid"><article><h3>趋势与参与度</h3><p>趋势由核心规则按当日及此前的收盘与均线计算。参与度统计固定十只 ETF 中已具备充分资料、且符合原 TRIX 条件的数量。</p><p>任何板块资料未就绪时，不把未知状态当作不符合，也不把剩余板块占比冒充十板块完整参与度。</p></article><article><h3>波动与回落</h3><p>波动观察最近20个交易日的变化幅度，历史分位用于与自身已知历史比较。分位样本不足时保留明确说明。</p><p>60日回落以近期最高收盘为参照，不是盘中高点，也不等同于投资账户最大回撤。</p></article><article><h3>历史查看与时间</h3><p>历史模式的计算不使用截止日之后的价格；原始历史记录的发布版本未逐时核验。最新模式使用当前已发布的资料版本；后台核对不更改已经展示的历史结果。</p><p>计算时间仅表示何时完成检查，不能代替指数或 ETF 的真实资料日期。</p></article><article><h3>当前模块的范围</h3><p>本页只读，不下单、不改变账户或仓位；没有概率预测或收益评分；行情检查与版本发布由上方独立管理。</p><p>十板块是固定样本。描述环境和风险有助于检查策略条件，但不能单独证明未来涨跌。</p></article></div><div id="coreRules" hidden></div><div class="sources-block"><h3>本次资料来源</h3><ul id="sourcesList"><li>等待接口提供已核验来源</li></ul></div></div>
+    </details>
+    <footer class="page-footer"><span>模块01 · 市场环境与风险</span><span>已发布版本研究视图 · 交易判断需另行验证</span></footer>
+  </main>
+  <noscript><p class="noscript">需要启用 JavaScript 才能读取本机资料。行情管理状态需由服务返回，不能从页面计算时间推断。</p></noscript>
+</body>
+</html>

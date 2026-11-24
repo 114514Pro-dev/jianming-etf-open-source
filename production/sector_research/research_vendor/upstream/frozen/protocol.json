@@ -1,0 +1,60 @@
+{
+  "study": "十板块价量评分、实验上涨概率与动态资金配置",
+  "version": "1.0",
+  "report_date": "2026-10-06",
+  "data_as_of": "2026-09-30",
+  "scope": "Price-volume research only. No earnings, valuation, news, broker order flow or production account integration.",
+  "horizon_choice": "20 trading sessions, the previously proposed default; user explicitly selected backtestable price-volume scope.",
+  "period": {"start": "2024-04-01", "end": "2026-09-30"},
+  "fixed_periods": [["2024-04-01", "2025-06-30"], ["2025-07-01", "2026-09-30"]],
+  "codes": ["sh512800", "sh512880", "sz159928", "sz159929", "sh512480", "sh512720", "sh512660", "sh515220", "sh512400", "sz159611"],
+  "total_capital": 100000,
+  "sleeve_capital": 10000,
+  "feature_rules": {
+    "availability": "All ten funds have at least 120 actual historical observations and all required market-index observations. No fabricated prelisting data.",
+    "economic_tr": "Causal gross daily total-return wealth from raw closes and official-effective splits/cash distributions, with theoretical daily reinvestment for features only. Not the earlier indicator-continuity line.",
+    "trend120": "economic_tr / arithmetic mean of last 120 values - 1; larger better",
+    "relative60": "(ETF economic_tr[t]/economic_tr[t-60])/(CSI_ALL_TR[t]/CSI_ALL_TR[t-60])-1; larger better",
+    "flow20": "(sum turnover_amount on positive economic return days - sum turnover_amount on negative return days)/sum turnover_amount over 20 actual sessions; larger better; NOT a fund-inflow estimate",
+    "volatility60": "sample standard deviation of latest 60 simple economic daily returns times sqrt(252); lower better",
+    "scoring": "Same-day average ranks among all ten funds; (rank-1)/9*100, risk reversed. Four equal 25% components. Score is relative ranking, NOT a probability.",
+    "TRIX": "Original 12/9 causal signal and historical state, unchanged. Score only changes allocation among TRIX-long funds."
+  },
+  "probability": {
+    "label": "At day t close predict purchase at t+1 raw open, terminal t+20 close, gross positive holding return. Includes split-adjusted shares and eligible cash/receivable dividends; cash not reinvested; no trading fees in label.",
+    "label_accounting": "Lock dividend eligibility at actual record-day end; recognize only at ex-date. Never double count not-yet-ex dividends in terminal price; only matured end dates used for evaluation/training.",
+    "model": "Fixed ridge logistic regression on four raw features. Training-only standardization, standardized values clipped to +/-5. Mean log loss plus 0.01/2 * squared non-intercept weights; no penalty on intercept.",
+    "schedule": "Monthly frozen fits. Training sample labels must end on/before the previous month's last market date. Expand from first complete feature date. All sectors share date boundaries. No random row splits or parameter search.",
+    "prediction_period": "2024-04-01 to 2026-09-30; last 20 forecast cohorts may be unresolved and excluded from outcome metrics.",
+    "references": ["training overall up frequency", "training frequency for each fund"],
+    "evaluation": ["Brier score", "log loss", "fixed reliability bins and sample sizes", "by-calendar-year results", "separate all matured rows and TRIX-long matured subset", "every-20-date nonoverlap diagnostic", "200 joint-date moving-block bootstrap replicates with 20-date blocks, seed 20261005"],
+    "latest": "September 30 historical prediction uses September fit. Separate October observation fit may use only labels matured by September 30, with September 30 features. Neither is October 6 live market data.",
+    "allocation_use": "None in this first study; probability diagnostic must be independently validated before it may size positions. No claim of calibrated personal trading odds. Twenty-session fixed-hold label is not identical to strategy trades that may exit earlier on TRIX."
+  },
+  "models": ["HOLD", "INDEPENDENT_TRIX", "SHARED20", "SCORE", "MATCH_EQUAL"],
+  "allocation": {
+    "HOLD": "Original ten independently funded buy-and-hold sleeves, initial 10000 each, no rebalance.",
+    "INDEPENDENT_TRIX": "Original ten independently funded daily TRIX sleeves, initial 10000 each, no cross-fund lending.",
+    "SHARED20": "One cash pool. Among N TRIX-long funds, each target min(1/N,0.20); N=0 all cash.",
+    "SCORE": "One cash pool. Each TRIX-long fund raw target 0.20*score/100; if sum exceeds 1 scale all proportionally down. Others zero. Unallocated capital stays cash.",
+    "MATCH_EQUAL": "Same rebalance dates and total target allocation as SCORE, split equally among its eligible TRIX-long funds. Actual exposures can differ with prices, costs and lots.",
+    "rebalance": "At initialization; whenever eligible TRIX-long set changes from preceding decision date; or when decision date is Friday. Otherwise actual holdings drift. A dead cross triggers next-session exit and full reallocation of remaining eligible funds.",
+    "target_equity": "Known account net asset value at decision-date close, including cash, marked holdings and recognized dividend receivables; if account not yet started use initial capital. Never use execution-date closing equity.",
+    "execution": "Next actual trading day's raw open plus explicit adverse slippage; sell first, then buy using available cash. Same-opening-price sell/buy sequence is a theoretical daily-bar assumption, not order-book proof.",
+    "quantity": "100-share lots. Target shares floor(target value / adverse buy price / 100)*100; zero target fully exits. When buys exceed cash, allocate available cash proportionally to desired orders including fees, round each down to affordable lots; remaining small cash is not redistributed by code or future performance.",
+    "cap": "20% target cap at rebalance, not an intraday hard stop; actual weight may drift above 20%.",
+    "restrictions": "No leverage, shorting, external capital or new market gate. No ranking by later returns."
+  },
+  "costs": {"commission_rate": 0.0003, "minimum_commission": 5, "slippage_rate": 0.0002, "minimum_slippage_ticks": 1, "tick": 0.001, "cash_interest": 0, "cash_rounding": "Decimal ROUND_HALF_UP to cents"},
+  "corporate_actions": "Preserve original registration/ex/pay/split accounting. Dividend payments on a trading day are usable after that day's transactions. End mark-to-market with receivables, no forced final liquidation.",
+  "experiments": {"primary": 5, "double_cost": 5, "extra_execution_day": 5, "fixed_periods": 10, "total_portfolios": 25, "double_cost_parameters": {"commission_rate": 0.0006, "minimum_commission": 10, "slippage_rate": 0.0004, "minimum_slippage_ticks": 2}, "delay_stress": "Both information and execution shifted one additional market day. This does not replace a separate settlement-delay or intraday fill simulation."},
+  "evaluation_limits": [
+    "Past sample already repeatedly viewed; chronological replay is retrospective research, not truly unseen future validation.",
+    "Twenty-day labels overlap and sectors correlate; do not call rows independent observations.",
+    "Current surviving ETF pool fixed retrospectively; historical fund-universe selection bias remains.",
+    "Existing corporate-action evidence and source-version limits remain.",
+    "Scores and model coefficients are research assumptions, not calibrated probabilities or fundamental quality assessments.",
+    "Do not compare new 2024-2026 annualized returns directly to older 2022-2026 results.",
+    "Target-exposure-matched control is matched at scheduled rebalance; realized exposure differs with paths."
+  ]
+}

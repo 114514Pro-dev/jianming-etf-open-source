@@ -1,0 +1,39 @@
+{
+  "schema": "sector-market-environment.contract.v1",
+  "version": "1.0.0",
+  "name": "市场环境与风险状态",
+  "role": "只读环境描述；不是交易策略、收益预测或仓位指令",
+  "endpoints": {
+    "GET /api/health": "运行版本与只读标记",
+    "GET /api/dates": "可选历史交易日期",
+    "GET /api/market-regime?as_of=YYYY-MM-DD": "不传as_of时读取最新可用状态；传入时为历史回看",
+    "GET /api/history?as_of=YYYY-MM-DD&limit=252": "截至指定日的行情及指标，limit为交易观察数量",
+    "GET /api/export?as_of=YYYY-MM-DD": "同一快照JSON下载",
+    "GET /api/contract": "本接口约定"
+  },
+  "units": {
+    "prices": "指数点或ETF人民币报价，按各字段名称区分",
+    "ratio_percentile_volatility_drawdown": "0—1小数；页面显示时乘100",
+    "delta_pp": "百分点，已经乘100",
+    "trix_signal": "指标原值（乘过100的一日三重EMA变化率）",
+    "dates": "Asia/Shanghai市场日；行情日期与计算时间分开"
+  },
+  "rules": {
+    "index": "中证全指价格指数000985",
+    "trend": "收盘>MA20>MA60>MA120且MA20高于5个市场日前为上行排列；全部严格反向为下行排列；其余未形成一致排列",
+    "breadth": "固定十ETF沿用因果连续化TRIX(12,9)状态；45根准备，双方准备后金叉入选、死叉不入选、相等维持，缺失为未知；不是全A市场宽度",
+    "volatility20": "20个简单日收益率的样本标准差乘sqrt(252)，须21个连续市场日收盘",
+    "volatility_percentile": "与前一日为止最多252个可算波动值比较，至少60个；(低于数+0.5*相等数)/样本数；≤20%相对偏低，≥80%相对偏高，其余中间",
+    "drawdown60": "1-当日收盘/含当日的近60个市场日最高收盘；不是区间最大回撤",
+    "history": "历史回看只用截止日前的数据；当前下载的历史记录不等于已验证历史各时点发布版本"
+  },
+  "data_adapter": {
+    "constructor": "from core import Environment; env=Environment(data_dir)",
+    "methods": ["env.snapshot(as_of=None, now=None)", "env.dates()", "env.history(as_of=None, limit=252)"],
+    "cli": "市场环境与风险状态.exe --data-dir <完整核验数据目录> --export <输出JSON>",
+    "required_files": ["market.json", "index_data.json", "verified_actions.json", "calendar_2026.json"],
+    "update_process": "将新行情、官方公司行动、完整日历、来源及核验范围保存到新的数据目录；通过独立校验后启动新实例。保留旧目录。仅声称覆盖而无来源不构成事实核验。不得只追加未复权行情并假设没有分红拆分。",
+    "status": "v1提供冻结数据读取和外部数据目录适配；未提供自动联网行情或自动公司行动核验",
+    "integration": "简明ETF可导入pure core或服务端读取此GET接口；无需引用交易Bridge或账本。本版本未接入现有应用。"
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "schema": "sector-capital.baseline-reproduction.v1",
+  "source": "improvement_results.json",
+  "source_sha256": "a1218190ff4fa5b34932206f7567455c387bc21ffe55ef9af81789ad7d1eb73c",
+  "gate_reference_source_sha256": "8889d3b07aebdc797c44ab1eae7039fa57bc0e9b5d6d4e0ca77b2bd4ec4a6088",
+  "cases": [
+    {
+      "case_id": "primary/HOLD",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "1a5dd99539bf92ffc9e6c56d799756e7bdd726c32e3009d34d1b524150bdb451",
+      "cagr": 0.12229797367529627
+    },
+    {
+      "case_id": "primary/INDEPENDENT_TRIX",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "029c0a41f64b24ca6f8edb046e9f8b5f21ead872f09172372ba096a1bb2062bf",
+      "cagr": 0.09296730855023627
+    },
+    {
+      "case_id": "primary/SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "2ffc6bf8819c8a744f4be859ec5d97653c5b47b5ed1a5d8decb24b53c741de80",
+      "cagr": 0.06446947253030633
+    },
+    {
+      "case_id": "primary/B_SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "c958de935187cf8893c0fae772b6294f03e3aee4b39c4c9ffd104b42e1354be3",
+      "cagr": 0.08813967846113457
+    },
+    {
+      "case_id": "primary/B_EQUAL",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "5de9346d10b95437ed279ae6c7bf86aef6bf2a937932e6af188854550c5d6684",
+      "cagr": 0.09235382820455329
+    },
+    {
+      "case_id": "primary/INDEPENDENT_ENTRY_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "2c03fcaa5e0cda92861c3dd42d538f50058347f7ca03b84d8ec13ba1ee2a8253",
+      "cagr": 0.0965892740077876
+    },
+    {
+      "case_id": "primary/INDEPENDENT_FULL_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "c5d7d629fe7504368941cb931d7a04e425a3974611201e5a80b0d4eb7cb7c747",
+      "cagr": 0.09120573190146608
+    },
+    {
+      "case_id": "double_cost/HOLD",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "463f9c6b89417b2373f66e64feab48498d3e3d8b093c2d7b20d102ebd03ff760",
+      "cagr": 0.12162913271119158
+    },
+    {
+      "case_id": "double_cost/INDEPENDENT_TRIX",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "5afefb3c05549de2a53fad165f33716afaa4e11915027a4e66cd4bb41b586fa5",
+      "cagr": 0.06999942291492744
+    },
+    {
+      "case_id": "double_cost/SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "6364b69500fddab4f5db4938872132fc9a6ecd0c67b79241699d325cfb20932e",
+      "cagr": 0.006900465868726613
+    },
+    {
+      "case_id": "double_cost/B_SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "3021267d9b6562b6e329596a5e64a46e7490855b901b0a0bf222c3da1fc769dd",
+      "cagr": 0.055138640534827754
+    },
+    {
+      "case_id": "double_cost/B_EQUAL",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "8ab5f7400d0504e090edd2ea9068b42e2d6a275f53618e1ee7da63f958e18168",
+      "cagr": 0.06728233461031263
+    },
+    {
+      "case_id": "double_cost/INDEPENDENT_ENTRY_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "8b4dfb5e6c261e6ec4193c98dad63c5c6a519a1ac1e26cc09524386ad13cef82",
+      "cagr": 0.07907556155730577
+    },
+    {
+      "case_id": "double_cost/INDEPENDENT_FULL_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "cd72be2703788f1ccced1f348c9274390cc42cd0574029d655ce05b2cc0d57bc",
+      "cagr": 0.07187860162878934
+    },
+    {
+      "case_id": "extra_execution_day/HOLD",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "151e962a26286565c70665e4e685c0dc2bf94df87528ca43f0f39fb4b3ddbc15",
+      "cagr": 0.1188465670395018
+    },
+    {
+      "case_id": "extra_execution_day/INDEPENDENT_TRIX",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "01a12110bb8527a6c96722064f9263c24519ab71e977919b1f5c34a0a9f36e40",
+      "cagr": 0.07866718516940718
+    },
+    {
+      "case_id": "extra_execution_day/SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "c45def26b488b4120230c8cb22f2b132dd976dd8f9162998f75065b6d1596a40",
+      "cagr": 0.0660424090579097
+    },
+    {
+      "case_id": "extra_execution_day/B_SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "62bde08fb760234e456a64f1e78ea1e5c76f6a9e9a393444954f2f35125fc303",
+      "cagr": 0.09104345361994426
+    },
+    {
+      "case_id": "extra_execution_day/B_EQUAL",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "9fef615aaa842f95a72ceaa033cd46381d9bf508e30d1abac2dd489068670600",
+      "cagr": 0.08194884986787176
+    },
+    {
+      "case_id": "extra_execution_day/INDEPENDENT_ENTRY_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "7aaff869b095936d4234ca37b7f75d77eb5eb52b565c69c5e9fa79877482373c",
+      "cagr": 0.06592044529131402
+    },
+    {
+      "case_id": "extra_execution_day/INDEPENDENT_FULL_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "b1ec3a35c596c6a37230745e4385f594db031434be4877c5012f75097e8ca989",
+      "cagr": 0.03957989504501436
+    },
+    {
+      "case_id": "no_minimum_commission/HOLD",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "741c6d2af794b730ecd0a04ca5dd092974ea7529e58f9ccf4f82190a3cc1ecde",
+      "cagr": 0.12236583577093696
+    },
+    {
+      "case_id": "no_minimum_commission/INDEPENDENT_TRIX",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "fc492fb8fcf9c5b3166ffccb0690b97d7256a79852e60a5ff2e2087ce3e173c8",
+      "cagr": 0.09510559997550327
+    },
+    {
+      "case_id": "no_minimum_commission/SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "d71b4bd3ff8a94b25e97606599a0d3f35030139154054589eaff2aaa6cde5104",
+      "cagr": 0.09092100924853641
+    },
+    {
+      "case_id": "no_minimum_commission/B_SCORE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "a1bff2104f749d22c0121d5413f839eeadc51d483b72eedc4800cdbc96b92c5a",
+      "cagr": 0.09332349451984578
+    },
+    {
+      "case_id": "no_minimum_commission/B_EQUAL",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "e189cdfbeb6f0d7a31f0036e9d2784c50d50c56ecbcb52cdf49a355d6f3d9d97",
+      "cagr": 0.09496845120067099
+    },
+    {
+      "case_id": "no_minimum_commission/INDEPENDENT_ENTRY_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "6056fba004c6fbda410c9aee7cebcb1b77f93c5d0364bd8c62df5ceaa89dbe44",
+      "cagr": 0.09860727246369905
+    },
+    {
+      "case_id": "no_minimum_commission/INDEPENDENT_FULL_GATE",
+      "complete_ledger_equal": true,
+      "canonical_sha256": "4f0cf82b3817f762687271b8578d3ec8784e0d7c087b89d53ab8f4d4e9db60af",
+      "cagr": 0.09381224015082767
+    }
+  ],
+  "cases_passed": 28,
+  "elapsed_seconds": 24.828000000008615,
+  "capital_type_canonicalization": "Whole-yuan capital is passed as int, preserving the original initial Decimal textual evidence; no economic calculation changed."
+}

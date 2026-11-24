@@ -1,0 +1,95 @@
+{
+  "schema": "sector-opportunities.contract.v1",
+  "version": "1.0.0",
+  "name": "板块机会观察",
+  "role": "固定十板块的历史收益、相对强弱和技术状态描述；不是新回测、总分、上涨概率或仓位指令",
+  "interface": {
+    "constructor": "Opportunity(env: Environment)",
+    "snapshot": "snapshot(as_of=None, now=None) -> dict",
+    "history": "history(code, as_of=None, limit=252) -> dict",
+    "clock_and_selection": "沿用第一模块市场交易日历（2026年官方休市日核验；更早日期沿用冻结历史日历）、16:10完成缓冲、明确历史模式和最新共同日期选择；core.py保持原样",
+    "history_limit": "1至5000个市场日，界面常用252或756；最早显示2022-04-01"
+  },
+  "units": {
+    "return20_return60_benchmark_return60_relative60_volatility20_drawdown60": "比例小数，显示时乘100",
+    "relative_rank60": "完整固定十ETF池的相对60日收益降序平均名次，1为最强，同值并列平均名次",
+    "skdj_k_skdj_d": "原SKDJ指标值，通常0至100",
+    "amount20": "近20个连续市场日成交额均值，人民币元；不是净流入",
+    "normalized_history": "所选窗口首个双方共同有效日各自归一到100"
+  },
+  "rules": {
+    "etf_economic_series": "沿用已冻结features_model.economic_series：以Decimal计算每日gross=(当日原始close*期间拆分ratio乘积+期间每旧份现金分红合计)/前一实际bar原始close，再转float累计。现金分红在除息日理论再投，不是实际到账日记账，也不是扣除投资者交易成本与税费后的可执行账户收益。",
+    "action_constraints": "使用Environment已核验事件和覆盖截止。出现现金分红时，其record_date必须等于除息后首根实际bar的前一实际bar日期；不满足即拒绝，不静默估算。已核验停牌例外仅沿用原512480在2021-03-26的拆分处理停牌。",
+    "return20": "含当日在内21个连续市场日经济TR端点比值减1",
+    "return60": "含当日在内61个连续市场日经济TR端点比值减1",
+    "benchmark": "中证全指全收益指数H00985，对应CSI_ALL_TR；与ETF经济TR作同为全收益的比较，不能用000985价格指数或CSI300_TR替换。缺基准系列或缺窗口日时仅相对相关字段与排名未知。非法数值拒绝数据包。",
+    "relative60": "(1+ETF return60)/(1+H00985 return60)-1；必须同一61个市场日窗口 这是收益比率差（显示为百分比），不是ETF收益减基准收益的百分点差。同日同基准下与ETF60日收益严格单调，二者排名相同，不构成两个独立因子，也不叠加打分。",
+    "volatility20": "20个连续市场日的经济单日收益率样本标准差ddof=1乘sqrt(252)，须21个连续有效经济TR日",
+    "drawdown60": "1-当日经济TR/含当日在内60个连续市场日经济TR最高值；不是账户最大回撤",
+    "trix": "直接复用第一模块原TRIX(12,9)资格；准备45根，双方ready后金死叉维护状态，相等维持。",
+    "skdj": "因果连续化OHLC，9日RSV→EMA3→EMA3为K，K的SMA3为D。完整9日高低相等时沿用前RSV，初值50。18根ready，双方ready后金死叉维护状态，相等维持。它是独立参考，不合并为交易门槛。",
+    "missing": "不插值、不前填、不缩短市场日窗口。未解释ETF历史缺口之后TRIX/SKDJ资格未知至补齐；经济TR实际端点仍可算且缺日保留null，完整收益窗口恢复后可恢复数值，但技术资格未知时不入完整研究池排名。超公司行动覆盖截止的经济和技术衍生数值未知；原始close及有效amount20仍保留。",
+    "ranking": "必须十只ETF的relative60和TRIX资格均已知；TRIX true及false均参与，SKDJ不作排名门槛。任一未知则全池排名null，不另对幸存子集排名。ranking_known为实际有名次的行数（0或10）；relative_known为具有relative60数值的行数。",
+    "groups": "只用TRIX资格与relative60>0两轴。both=趋势资格且相对领先，trend_only=仅趋势资格，relative_only=仅相对领先，neither=两项均未成立，unknown=资料不足。相对差等于0不算领先。both可能绝对收益为负，不表示会上涨。",
+    "history": "按市场日逐行输出；缺失一方时只该方为null并断线；归一基日是窗口内首个双方共同有效日，早于基日双方均null。基准缺失不伪造参照曲线。"
+  },
+  "snapshot_fields": [
+    "schema",
+    "snapshot_date",
+    "mode",
+    "calculated_at",
+    "freshness",
+    "sources",
+    "warnings",
+    "market_context",
+    "summary",
+    "sectors"
+  ],
+  "sector_fields": [
+    "code",
+    "name",
+    "close",
+    "data_date",
+    "trix_eligible",
+    "trix_ready",
+    "skdj_eligible",
+    "skdj_ready",
+    "skdj_k",
+    "skdj_d",
+    "return20",
+    "return60",
+    "benchmark_return60",
+    "relative60",
+    "relative_rank60",
+    "volatility20",
+    "drawdown60",
+    "amount20",
+    "status",
+    "status_label",
+    "reasons"
+  ],
+  "summary_fields": [
+    "groups",
+    "ranking_known",
+    "relative_known",
+    "total"
+  ],
+  "history_fields": [
+    "code",
+    "name",
+    "snapshot_date",
+    "rows",
+    "base_date",
+    "notes"
+  ],
+  "history_row_fields": [
+    "date",
+    "etf_normalized",
+    "benchmark_normalized"
+  ],
+  "limitations": [
+    "行情及公司行动仍为2026-09-30冻结种子，无自动联网更新；保留第一模块全部数据时效与证据边界。",
+    "分红除息日再投是研究计算约定；未模拟投资者账户的费用、税费、现金到账等待和再投资执行。ETF交易价格本身已反映基金运行及跟踪表现。",
+    "中证全指全收益是指数参考，十只ETF是事后固定研究池；排名与观察分组不是未来收益排名。"
+  ]
+}

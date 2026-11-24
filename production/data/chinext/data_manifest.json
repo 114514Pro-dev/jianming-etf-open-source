@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-09-16T11:05:47.661235+08:00",
+  "cutoff": "2026-09-15",
+  "daily": {
+    "file": "daily.csv",
+    "sha256": "6bd13a609916090d9bd4812224325994de660825219ec9accb4aa02df551ccb6",
+    "rows": 3586,
+    "first": {
+      "date": "2011-12-09",
+      "open": 0.795,
+      "high": 0.814,
+      "low": 0.795,
+      "close": 0.797,
+      "volume": 106177233.0,
+      "amount": 85144000.0
+    },
+    "last": {
+      "date": "2026-09-15",
+      "open": 3.3,
+      "high": 3.334,
+      "low": 3.263,
+      "close": 3.268,
+      "volume": 1526951500.0,
+      "amount": 5031342800.0
+    },
+    "source_path": "85e463a5f14eb7199d776106b6114f7126ea97a2162ea7ae9e3f7752a28fa59e.json",
+    "source_sha256": "71277a599c9db10e68c1b437de4636a94422fc301f282accfbbbd6ade994b007",
+    "timezone": "Asia/Shanghai",
+    "volume_unit": "shares (source volume_lots * 100)",
+    "adjustment": "unadjusted",
+    "corporate_actions": {
+      "dividends": [],
+      "splits": [
+        {
+          "date": "2011-11-30",
+          "type": "份额折算",
+          "ratio": 1.1456
+        }
+      ],
+      "url": "https://fundf10.eastmoney.com/fhsp_159915.html"
+    }
+  },
+  "hourly_sources": {
+    "sina": {
+      "file": "hourly.csv",
+      "sha256": "81e539793156cfa773d36ee152fe9f601506033e21e7f139156f79223eadb916",
+      "rows": 3960,
+      "first": {
+        "datetime": "2022-08-17 10:30:00",
+        "open": 2.653,
+        "high": 2.67,
+        "low": 2.639,
+        "close": 2.647,
+        "volume": 82322099.0,
+        "amount": ""
+      },
+      "last": {
+        "datetime": "2026-09-15 15:00:00",
+        "open": 3.285,
+        "high": 3.288,
+        "low": 3.263,
+        "close": 3.268,
+        "volume": 365620900.0,
+        "amount": ""
+      },
+      "source": "sina",
+      "timezone": "Asia/Shanghai",
+      "bar_timestamp": "bar end",
+      "volume_unit": "shares",
+      "adjustment": "unadjusted",
+      "excluded_days": {
+        "2022-08-16": 3,
+        "2026-09-16": 2
+      },
+      "distinct_trading_days": 990
+    },
+    "tencent": {
+      "file": "hourly_tencent.csv",
+      "sha256": "6fbd029981327ccf5c7ab23ad18e6dc4f0555af92e808774d635204804970d72",
+      "rows": 316,
+      "first": {
+        "datetime": "2026-05-27 10:30:00",
+        "open": 4.053,
+        "close": 4.146,
+        "high": 4.148,
+        "low": 4.053,
+        "volume": 836671381.0,
+        "amount": ""
+      },
+      "last": {
+        "datetime": "2026-09-15 15:00:00",
+        "open": 3.285,
+        "close": 3.268,
+        "high": 3.288,
+        "low": 3.264,
+        "volume": 365639200.0,
+        "amount": ""
+      },
+      "source": "tencent",
+      "timezone": "Asia/Shanghai",
+      "bar_timestamp": "bar end",
+      "volume_unit": "shares",
+      "adjustment": "unadjusted",
+      "excluded_days": {
+        "2026-05-26": 2,
+        "2026-09-16": 2
+      },
+      "distinct_trading_days": 79
+    },
+    "eastmoney": {
+      "file": "hourly_eastmoney.csv",
+      "sha256": "663f5de1b1a5f0589014ead892d8cff3975aa7914cc0ce62de1b88bca98e3403",
+      "rows": 124,
+      "first": {
+        "datetime": "2026-08-04 10:30:00",
+        "open": 3.375,
+        "close": 3.439,
+        "high": 3.454,
+        "low": 3.361,
+        "volume": 1211879600.0,
+        "amount": 4137119574.0
+      },
+      "last": {
+        "datetime": "2026-09-15 15:00:00",
+        "open": 3.285,
+        "close": 3.268,
+        "high": 3.288,
+        "low": 3.263,
+        "volume": 366210400.0,
+        "amount": 1198932399.0
+      },
+      "source": "eastmoney",
+      "timezone": "Asia/Shanghai",
+      "bar_timestamp": "bar end",
+      "volume_unit": "shares",
+      "adjustment": "unadjusted",
+      "excluded_days": {
+        "2026-09-16": 2
+      },
+      "distinct_trading_days": 31
+    }
+  },
+  "adjustment_checks": {
+    "qfq": {
+      "rows": 3586,
+      "min_close_ratio": 1.0,
+      "max_close_ratio": 1.0,
+      "max_abs_ohlc_difference": 0.0,
+      "max_daily_ratio_change": 0.0
+    },
+    "hfq": {
+      "rows": 3586,
+      "min_close_ratio": 1.1448818897637796,
+      "max_close_ratio": 1.146417445482866,
+      "max_abs_ohlc_difference": 0.6400000000000006,
+      "max_daily_ratio_change": 0.0012282279439606025
+    }
+  },
+  "quality": {
+    "full_hourly_days": 990,
+    "missing_trading_days": [],
+    "daily_ohlc_exact_days": 976,
+    "daily_ohlc_mismatch_days": 14,
+    "max_absolute_daily_ohlc_difference": 0.003,
+    "max_absolute_daily_volume_relative_difference": 0.09055132630435592,
+    "cross_source_sina_comparison": {
+      "tencent": {
+        "compared_complete_bars": 316,
+        "exact_ohlc_bars": 27,
+        "max_absolute_price_difference": 0.056
+      },
+      "eastmoney": {
+        "compared_complete_bars": 124,
+        "exact_ohlc_bars": 39,
+        "max_absolute_price_difference": 0.006
+      }
+    }
+  },
+  "notes": [
+    "Never fabricate old intraday bars from daily OHLC.",
+    "All price series used for execution are unadjusted.",
+    "Sina intraday amount unavailable; blank amount is not zero.",
+    "Vendor intraday bars have different sampling and auction inclusion; see cross-source and daily reconciliation audits.",
+    "No source prices have been patched to match another vendor."
+  ]
+}

@@ -1,0 +1,14 @@
+.company-review *{min-width:0;overflow-wrap:anywhere}
+.company-review{border:1px solid #304957;border-radius:16px;padding:22px;background:#10212c}
+.company-review h3{margin-top:0}.company-review h4{margin:0 0 12px}.company-review p{line-height:1.6}
+.company-review-grid,.company-review-topics,.company-review-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.company-review-panel{border:1px solid #2a4152;border-radius:12px;padding:16px;margin:16px 0;background:#111e2d}
+.company-review-grid>.company-review-panel{margin:0}
+.company-review-note{color:#9bb5c9;font-size:.9rem}.company-review-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem}
+.company-review-observation+.company-review-observation{margin-top:14px;border-top:1px solid #2a4152;padding-top:14px}
+.company-review-warning{background:#33242e;border-color:#754453}
+.company-review-source{display:block;margin:8px 0;color:#6ee0c6;font-size:.85rem}
+.company-review-topic{border:1px solid #294353;border-radius:9px;padding:12px}.company-review li{margin:12px 0;line-height:1.6}
+.company-review details{margin-top:8px}.company-review summary{cursor:pointer;color:#9ccbbf;font-size:.9rem}
+.company-review-folded>summary{font-weight:600;font-size:1rem}.company-review-folded[open]>summary{margin-bottom:16px}
+@media(max-width:720px){.company-review-grid,.company-review-topics,.company-review-dates{grid-template-columns:minmax(0,1fr)}.company-review{padding:14px}.company-review-panel{padding:12px}.company-review-meta{display:block}.company-review-meta>span{display:block}}

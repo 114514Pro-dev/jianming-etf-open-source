@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "history_after": "2026-09-15",
+  "account_count": 1,
+  "existing_financial_state_unchanged": true,
+  "verified_at": "2026-09-16T10:08:22.336781",
+  "previous_intraday_batches": 5,
+  "current_intraday_batches": 7,
+  "all_previous_intraday_records_unchanged": true,
+  "live_quote_dates": {
+    "sz159915": "2026-09-16",
+    "sh512800": "2026-09-16",
+    "sh518880": "2026-09-16",
+    "sh511010": "2026-09-16"
+  },
+  "live_received_at": "2026-09-16T10:07:41.613222+08:00",
+  "ui_verified": {
+    "version": "1.1.1",
+    "history_header": "2026-09-15",
+    "live_quotes": "2026-09-16",
+    "reference_plan_visible": true,
+    "auto_refresh": "30分钟",
+    "selected_account": "我的模拟账户"
+  },
+  "shortcuts_updated": [
+    "03-快速启动/简明ETF模拟交易.lnk",
+    "03-快速启动/简明ETF模拟交易v1.1.lnk"
+  ]
+}
