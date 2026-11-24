@@ -947,6 +947,17 @@ class PaperService:
                 self._plan(self.ledger.snapshot(), signal, batch)
             return self.snapshot()
 
+    def export_live_signal(self):
+        from live_signal import project_live_signal
+
+        with self._lock:
+            return project_live_signal(
+                signal=self.ledger.snapshot().get("signal"), strategy=self.strategy,
+                calendar=self.ledger.calendar, now=_now(self.now),
+                observed_at=self._source_state.get("last_observed"),
+                source_status=self._source_state.get("source_status"),
+            )
+
     def snapshot(self):
         with self._lock:
             result = copy.deepcopy(self.ledger.snapshot())

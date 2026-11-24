@@ -1874,6 +1874,18 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                                         ("D0I-BOND-WW", "双股择时 周线择债", "ww_paper"))]}
         return result
 
+    @app.get("/api/live-trading/signal")
+    async def live_trading_signal(request: Request):
+        strategy = paper_strategy(request)
+        export = getattr(paper_service_instance(strategy), "export_live_signal", None)
+        if not callable(export):
+            raise PaperApiError("LIVE_SIGNAL_UNAVAILABLE", "当前服务无法导出策略信号", 503)
+        try:
+            result = await asyncio.to_thread(export)
+        except (ValueError, TypeError, KeyError):
+            raise PaperApiError("LIVE_SIGNAL_UNAVAILABLE", "暂无可交接的当前确认信号", 409) from None
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
     @app.get("/api/realtime-paper/accounts/{account_id}")
     async def paper_account(account_id: str, request: Request):
         return await paper_call("account_detail", paper_identity(account_id), strategy=paper_strategy(request))

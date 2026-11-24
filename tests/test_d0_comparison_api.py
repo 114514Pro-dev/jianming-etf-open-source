@@ -137,6 +137,36 @@ class ComparisonApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body, self.payload)
         self.service.snapshot.assert_called_once_with(IDENTITY)
 
+    async def test_live_signal_export_is_authenticated_and_read_only(self):
+        from datetime import datetime
+        from live_signal import project_live_signal
+        from realtime_paper_engine import TradingCalendar, TZ
+
+        now = datetime(2026, 10, 28, 10, tzinfo=TZ)
+        signal = dict(id='test-D0', valid=True, strategy='D0', confirmed_day='2026-10-27',
+                      execution_day='2026-10-28', data_cutoff='2026-10-27T15:00:00+08:00',
+                      known_at='2026-10-27T16:10:00+08:00', eligible_at='2026-10-28T09:30:00+08:00',
+                      weights={'sz159915': '0.6', 'sh511010': '0.25'})
+        self.paper = Mock(spec=['export_live_signal'])
+        self.paper.export_live_signal.side_effect = lambda: project_live_signal(
+            signal=signal, strategy='D0', calendar=TradingCalendar(), now=now,
+            observed_at=now, source_status='ready')
+        endpoint = '/api/live-trading/signal'
+        async with self.app() as app:
+            self.assertEqual((await request(app, endpoint))[0], 401)
+            self.paper.export_live_signal.assert_not_called()
+            cookie, csrf = await self.login(app)
+            status, headers, body = await request(app, endpoint, cookie=cookie)
+            self.assertEqual(status, 200)
+            self.assertEqual(headers['cache-control'], 'no-store')
+            self.assertEqual(body['targets'], {'SZSE.159915': '0.6', 'SHSE.511010': '0.25',
+                                               'SHSE.518880': '0', 'SHSE.512800': '0'})
+            self.assertEqual(body['cash_weight'], '0.15')
+            self.assertNotIn('orders', body)
+            self.assertEqual((await request(app, endpoint, method='POST', cookie=cookie, csrf=csrf))[0], 405)
+            signal['confirmed_day'] = '2026-10-26'
+            self.assertEqual((await request(app, endpoint, cookie=cookie))[0], 409)
+
     async def test_invalid_account_ids_are_rejected_before_the_service(self):
         async with self.app() as app:
             cookie, _ = await self.login(app)
