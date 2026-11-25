@@ -73,7 +73,7 @@ async function run() {
         if (request.method() !== 'GET') writes.push([url.pathname, request.postDataJSON(), request.headers()]);
         const prefix = '/api/d0-control';
         if (url.pathname === `${prefix}/sync/download`) return route.fulfill({body: 'synthetic',
-          contentType: 'application/zip', headers: {'Content-Disposition': 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'}});
+          contentType: 'application/zip', headers: {'Content-Disposition': 'attachment; filename="Jianming-ETF-Sync-Windows-v3.zip"'}});
         if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState, broker_network_authorized: brokerNetwork}});
         if (url.pathname === `${prefix}/sync/pair`) {
           syncState = 'waiting';
@@ -166,12 +166,17 @@ async function run() {
       assert.equal(await page.locator('#broker').isVisible(), true);
       assert.match(await page.locator('#broker-unavailable').innerText(), /网页实盘尚未开启/);
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
-      assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), '/api/d0-control/sync/download');
+      const downloadPath = '/api/d0-control/sync/download?v=3';
+      assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), downloadPath);
+      await page.evaluate(() => localStorage.setItem('etf-connector-bootstrap-v2-requested', 'yes'));
+      await page.reload();
       const download = page.waitForEvent('download');
       await page.getByRole('button', {name: '开始配对'}).click();
-      assert.equal((await download).suggestedFilename(), 'Jianming-ETF-Sync-Windows.zip');
+      const newBundle = await download;
+      assert.equal(newBundle.url(), origin + downloadPath);
+      assert.equal(newBundle.suggestedFilename(), 'Jianming-ETF-Sync-Windows-v3.zip');
       await page.locator('#sync-code-box').waitFor();
-      assert.equal(await page.evaluate(() => localStorage.getItem('etf-connector-bootstrap-v2-requested')), 'yes');
+      assert.equal(await page.evaluate(path => localStorage.getItem(`etf-connector-download:${path}`), downloadPath), 'yes');
       assert.equal(await page.locator('#sync-code').inputValue(), 'A'.repeat(32));
       syncState = 'linked';
       await page.getByRole('button', {name: '刷新连接状态'}).click();

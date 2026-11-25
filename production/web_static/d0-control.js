@@ -19,7 +19,8 @@
   let syncTimer = null;
   let syncRequest = 0;
   let syncNetwork = false;
-  const downloadKey = 'etf-connector-bootstrap-v2-requested';
+  const syncDownload = byId('sync-download');
+  const downloadKey = `etf-connector-download:${syncDownload.getAttribute('href')}`;
   let downloadRequested = false;
   try { downloadRequested = localStorage.getItem(downloadKey) === 'yes'; } catch { /* optional */ }
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
@@ -91,13 +92,13 @@
     }
   }
 
-  byId('sync-download').addEventListener('click', () => {
+  syncDownload.addEventListener('click', () => {
     downloadRequested = true;
     try { localStorage.setItem(downloadKey, 'yes'); } catch { /* optional */ }
   });
   byId('sync-start').addEventListener('click', async () => {
-    // Browsers cannot detect installed software; request the ZIP once on a user gesture.
-    if (!downloadRequested) byId('sync-download').click();
+    // Browsers cannot detect installed software; request each new ZIP version once on a user gesture.
+    if (!downloadRequested) syncDownload.click();
     const button = byId('sync-start');
     button.disabled = true;
     byId('sync-refresh').disabled = true;
