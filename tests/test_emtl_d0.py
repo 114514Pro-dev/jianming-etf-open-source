@@ -5,11 +5,13 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from threading import RLock
 import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import emtl_d0
+from realtime_paper_service import PaperService
 
 
 NOW = datetime.fromisoformat("2026-11-24T09:30:05+08:00")
@@ -19,7 +21,7 @@ SYMBOLS = emtl_d0.SYMBOLS
 def inputs():
     stamp = (NOW - timedelta(seconds=1)).isoformat()
     snapshot = {
-        "contract_version": "realtime-paper-v1", "strategy": "D0", "source_status": "ready", "historical_seed": False,
+        "contract_version": "d0-order-preview-input-v1", "strategy": "D0", "source_status": "ready", "historical_seed": False,
         "signal": {"strategy": "D0", "valid": True, "id": "a" * 64, "confirmed_day": "2026-11-23",
                    "execution_day": "2026-11-24", "eligible_at": "2026-11-24T09:30:00+08:00",
                    "data_cutoff": "2026-11-23T15:00:00+08:00", "known_at": "2026-11-23T16:10:00+08:00",
@@ -97,6 +99,26 @@ class PreviewTests(unittest.TestCase):
 
 
 class WebsiteTests(unittest.TestCase):
+    def test_projection_excludes_private_ledger_fields_and_blocks_halted_quotes(self):
+        expected, balances = inputs()
+        paper = PaperService.__new__(PaperService)
+        paper.strategy, paper._lock = "D0", RLock()
+        paper.ledger = Mock()
+        paper.ledger.snapshot.return_value = {
+            "signal": {**expected["signal"], "internal": "private"}, "account": "private", "orders": ["private"],
+            "quotes": {"sz159915": {"status": "halted"}},
+        }
+        paper._source_state = {key: expected[key] for key in ("source_status", "historical_seed")}
+        paper._last_batch = expected["market_observation"]
+        projection = paper.order_preview_input()
+        self.assertNotIn("private", json.dumps(projection))
+        with self.assertRaisesRegex(ValueError, "交易状态异常"):
+            emtl_d0.preview(projection, balances, now=NOW)
+        paper.ledger.snapshot.return_value["quotes"] = {}
+        self.assertEqual(emtl_d0.preview(paper.order_preview_input(), balances, now=NOW)["stage"], "buy")
+        paper._source_state["source_status"] = "blocked"
+        self.assertIsNone(paper.order_preview_input()["market_observation"])
+
     def test_reads_paper_api_with_website_session_only(self):
         login = Mock(status=200, headers={"Set-Cookie": "etf_session=" + "a" * 43 + "; Secure; HttpOnly"})
         login.read.return_value = b'{"authenticated":true}'
@@ -110,7 +132,7 @@ class WebsiteTests(unittest.TestCase):
             auth, read = server.request.call_args_list
             self.assertEqual(auth.args, ("POST", "/api/login"))
             self.assertEqual(auth.kwargs["headers"]["Origin"], "https://etf.example")
-            self.assertEqual(read.args, ("GET", "/api/realtime-paper?strategy=D0"))
+            self.assertEqual(read.args, ("GET", "/api/realtime-paper/d0-order-preview-input"))
             self.assertEqual(read.kwargs["headers"], {"Cookie": "etf_session=" + "a" * 43})
             server.close.assert_called_once()
 

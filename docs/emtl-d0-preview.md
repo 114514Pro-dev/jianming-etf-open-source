@@ -2,7 +2,7 @@
 
 这一阶段**不会提交或撤销任何真实委托**。工具分开读取两个来源：
 
-- `preview` 从简明 ETF 已有的 D0 模拟盘接口拿确认信号和行情，使用你手工核实的 D0 资金、持仓和费用生成拟单。支持保存好的接口 JSON；不调用 EMTL，不读取模拟盘的现金或持仓来代替真实账户。没有复用东财掘金联调文件，也不调用另外授权的 `/api/live-trading/signal`。
+- `preview` 通过需登录的 D0 拟单输入接口读取现有模拟盘的确认信号和行情，使用你手工核实的 D0 资金、持仓和费用生成拟单。支持保存好的接口 JSON；不调用 EMTL，不读取模拟盘的现金或持仓来代替真实账户。没有复用东财掘金联调文件，也不调用另外授权的 `/api/live-trading/signal`。
 - `probe` 用固定版本 `emtl==0.3.1` 登录东方财富证券，仅读取资金持仓、当日委托和当日成交。打印阶段、HTTP 查询耗时以及数据是对象还是数组，不打印金额、持仓、账号和会话令牌。**这一版不猜测东财账户字段，不会把探针响应自动当作算单输入。**
 
 ## 拟单：不需要券商账户
@@ -30,7 +30,7 @@
 
 ```powershell
 python scripts/emtl_d0.py preview --site https://your-etf.example --balances balances.json
-# 或读已保存的 GET /api/realtime-paper?strategy=D0 JSON：
+# 或读已保存的 GET /api/realtime-paper/d0-order-preview-input JSON：
 python scripts/emtl_d0.py preview --snapshot d0-snapshot.json --balances balances.json
 ```
 

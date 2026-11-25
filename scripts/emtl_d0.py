@@ -45,8 +45,8 @@ def _lots(quantity):
 
 
 def _market(snapshot, now):
-    if snapshot.get("contract_version") != "realtime-paper-v1" or snapshot.get("strategy") != "D0":
-        raise ValueError("请提供 D0 模拟盘 API 快照")
+    if snapshot.get("contract_version") != "d0-order-preview-input-v1" or snapshot.get("strategy") != "D0":
+        raise ValueError("请提供 D0 拟单输入 API 快照")
     if snapshot.get("source_status") != "ready" or snapshot.get("historical_seed") is not False:
         raise ValueError("行情来源未就绪，或当前仅有历史种子")
     cal = TradingCalendar()
@@ -209,7 +209,7 @@ def _site_origin(site):
 
 
 def read_paper_snapshot(site, password):
-    """Read the normal D0 paper API, not the separately licensed live-signal add-on."""
+    """Read the D0 order preview input, not the separately licensed live-signal add-on."""
     url = _site_origin(site)
     origin = f"{url.scheme}://{url.netloc}"
     connect = HTTPSConnection if url.scheme == "https" else HTTPConnection
@@ -227,11 +227,11 @@ def read_paper_snapshot(site, password):
             raise ValueError("站点使用安全 Cookie，请改用 HTTPS")
         if len(reply.read(4097)) > 4096:
             raise ValueError("站点登录响应过大")
-        connection.request("GET", "/api/realtime-paper?strategy=D0", headers={"Cookie": cookie.OutputString(attrs=[])})
+        connection.request("GET", "/api/realtime-paper/d0-order-preview-input", headers={"Cookie": cookie.OutputString(attrs=[])})
         reply = connection.getresponse()
         if reply.status != 200:
             raise ValueError(f"无法读取 D0 模拟盘（HTTP {reply.status}）")
-        limit = 16 * 1024 * 1024
+        limit = 64 * 1024
         raw = reply.read(limit + 1)
         if len(raw) > limit:
             raise ValueError("D0 模拟盘响应过大")

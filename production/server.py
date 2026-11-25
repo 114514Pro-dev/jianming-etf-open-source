@@ -1874,6 +1874,13 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                                         ("D0I-BOND-WW", "双股择时 周线择债", "ww_paper"))]}
         return result
 
+    @app.get("/api/realtime-paper/d0-order-preview-input")
+    def d0_order_preview_input():
+        read = getattr(paper_service_instance("D0"), "order_preview_input", None)
+        if not callable(read):
+            raise PaperApiError("PAPER_UNAVAILABLE", "D0 拟单资料暂不可用", 503)
+        return read()
+
     @app.get("/api/live-trading/signal")
     async def live_trading_signal(request: Request):
         strategy = paper_strategy(request)

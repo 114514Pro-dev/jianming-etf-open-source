@@ -938,6 +938,34 @@ class PaperService:
                 self._plan(self.ledger.snapshot(), signal, batch)
             return self.snapshot()
 
+    def order_preview_input(self):
+        """Read-only D0 inputs; do not export paper balances or the ledger history."""
+        if self.strategy != "D0":
+            raise ValueError("order previews support D0 only")
+        with self._lock:
+            raw = self.ledger.snapshot()
+            state = self._source_state
+            signal = raw.get("signal")
+            batch = self._last_batch if state.get("source_status") == "ready" else None
+            observation = None
+            if batch is not None:
+                quotes = {}
+                for symbol in SYMBOLS:
+                    row = batch["quotes"].get(symbol)
+                    if not isinstance(row, dict):
+                        continue
+                    quote = {key: row.get(key) for key in ("symbol", "price", "previous_close", "quote_at", "started", "status")}
+                    status = (raw.get("quotes") or {}).get(symbol, {}).get("status")
+                    if status in {"halted", "unknown"}:
+                        quote["status"] = status
+                    quotes[symbol] = quote
+                observation = {"received_at": batch.get("received_at"), "quotes": quotes}
+            fields = ("id", "strategy", "valid", "confirmed_day", "execution_day", "eligible_at", "data_cutoff", "known_at", "weights")
+            return {"contract_version": "d0-order-preview-input-v1", "strategy": self.strategy,
+                    "source_status": state.get("source_status"), "historical_seed": state.get("historical_seed"),
+                    "signal": {key: copy.deepcopy(signal.get(key)) for key in fields} if isinstance(signal, dict) else None,
+                    "market_observation": observation}
+
     def export_live_signal(self):
         from live_signal import project_live_signal
 
