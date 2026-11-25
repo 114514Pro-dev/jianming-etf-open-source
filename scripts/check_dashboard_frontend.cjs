@@ -51,6 +51,7 @@ async function run() {
       let connected = false;
       let accountBound = false;
       let syncState = 'not_linked';
+      let brokerNetwork = false;
       let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
       let brokerState = 'disabled';
       let marketState = 'open';
@@ -73,7 +74,7 @@ async function run() {
         const prefix = '/api/d0-control';
         if (url.pathname === `${prefix}/sync/download`) return route.fulfill({body: 'synthetic',
           contentType: 'application/zip', headers: {'Content-Disposition': 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'}});
-        if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState}});
+        if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState, broker_network_authorized: brokerNetwork}});
         if (url.pathname === `${prefix}/sync/pair`) {
           syncState = 'waiting';
           return route.fulfill({json: {code: 'A'.repeat(32), expires_in: 300}});
@@ -184,9 +185,18 @@ async function run() {
       assert.equal(await page.locator('#broker-password').isVisible(), false);
       await page.emulateMedia({reducedMotion: 'reduce'});
       assert.equal(await page.locator('#workspace').evaluate(el => getComputedStyle(el).animationName), 'none');
-      brokerState = 'available';
+      brokerState = 'connector_pairing_required';
+      syncState = 'not_linked';
       marketState = 'closed';
       await page.goto(origin + '/d0-control');
+      await page.getByText('等待网络授权', {exact: true}).waitFor();
+      assert.equal(await page.locator('#broker-password').isVisible(), false);
+      await page.getByRole('button', {name: '开始配对'}).click();
+      await page.locator('#sync-code-box').waitFor();
+      brokerState = 'available';
+      brokerNetwork = true;
+      syncState = 'linked';
+      await page.getByText(/网页券商网络已临时授权/).waitFor();
       await page.locator('#broker-connect').waitFor();
       assert.match(await page.locator('#signal').innerText(), /非连续交易时段/);
       await page.locator('#broker-enrollment').waitFor();
@@ -238,6 +248,11 @@ async function run() {
       await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
       await page.locator('#broker-session').waitFor();
       assert.equal(await page.locator('#broker-rebind-code').inputValue(), '');
+      brokerState = 'connector_pairing_required';
+      brokerNetwork = false;
+      syncState = 'not_linked';
+      await page.getByText('等待网络授权', {exact: true}).waitFor();
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
       assert.equal(await noOverflow(), true, `broker overflow at ${width}`);
       await page.close();
       console.log(`Dashboard and D0 preview passed at ${width}px`);

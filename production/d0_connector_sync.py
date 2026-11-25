@@ -1,4 +1,4 @@
-"""Short-lived, session-bound status sync. No broker credentials or account data."""
+"""Short-lived, session-bound status sync and optional same-network proof."""
 from dataclasses import dataclass
 from hashlib import sha256
 import re
@@ -17,6 +17,8 @@ class Pairing:
     state: str
     expires: float
     signal_digest: str | None = None
+    expected_peer: str | None = None
+    authorized_peer: str | None = None
 
 
 class ConnectorSync:
@@ -44,21 +46,26 @@ class ConnectorSync:
             if entry.expires <= now:
                 self._entries.pop(owner)
 
-    def start(self, owner):
+    def start(self, owner, *, peer=None):
         with self._lock:
             now = self._now()
             self._prune(now)
             if owner not in self._entries and len(self._entries) >= self.capacity:
                 raise SyncError('同步服务繁忙，请稍后重试。')
             code = secrets.token_urlsafe(24)
-            self._entries[owner] = Pairing(self._digest(code), 'waiting', now + self.pair_seconds)
+            self._entries[owner] = Pairing(self._digest(code), 'waiting', now + self.pair_seconds, expected_peer=peer)
             return {'code': code, 'expires_in': self.pair_seconds}
 
-    def status(self, owner):
+    def status(self, owner, *, peer=None, include_network=False):
         with self._lock:
             self._prune(self._now())
             entry = self._entries.get(owner)
-            return {'state': entry.state if entry else 'not_linked'}
+            result = {'state': entry.state if entry else 'not_linked'}
+            if include_network:
+                result['broker_network_authorized'] = bool(entry and peer and entry.authorized_peer == peer)
+                result['broker_network_mismatch'] = bool(entry and entry.expected_peer and not entry.authorized_peer
+                                                         and entry.state != 'waiting')
+            return result
 
     def revoke(self, owner):
         with self._lock:
@@ -70,7 +77,7 @@ class ConnectorSync:
                 return entry
         raise SyncError('同步凭证无效、过期或已使用。')
 
-    def claim(self, code):
+    def claim(self, code, *, peer=None):
         digest = self._verify_format(code)
         with self._lock:
             now = self._now()
@@ -80,6 +87,8 @@ class ConnectorSync:
             signal_token = secrets.token_urlsafe(24)
             entry.digest, entry.state, entry.expires = self._digest(token), 'linked', now + self.link_seconds
             entry.signal_digest = self._digest(signal_token)
+            if peer and peer == entry.expected_peer:
+                entry.authorized_peer = peer
             return {'sync_token': token, 'signal_token': signal_token, 'expires_in': self.link_seconds}
 
     def signal_owner(self, token):
