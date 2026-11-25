@@ -1979,7 +1979,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 for name in ("launch.cmd", "bootstrap.ps1", "pilot.py", "requirements-win.lock", "README.txt"):
                     bundle.write(ROOT / "d0_connector" / name, f"Jianming-ETF-Sync/{name}")
             return Response(buf.getvalue(), media_type="application/zip",
-                            headers={"Content-Disposition": 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'})
+                            headers={"Content-Disposition": 'attachment; filename="Jianming-ETF-Sync-Windows-v3.zip"'})
 
         @app.get("/api/d0-control/sync/status")
         def sync_status(request: Request):

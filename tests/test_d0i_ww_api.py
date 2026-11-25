@@ -284,11 +284,13 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await request(app, prefix + 'pair', method='POST', cookie=cookie, csrf=csrf))[0], 403)
             status, headers, pair = await request(app, prefix + 'pair', method='POST', cookie=cookie, csrf=csrf, origin=site)
             self.assertEqual((status, headers['cache-control']), (200, 'no-store'))
-            status, headers, zipped = await request(app, prefix + 'download', cookie=cookie, as_json=False)
+            status, headers, zipped = await request(app, prefix + 'download', query_string='v=3', cookie=cookie, as_json=False)
             self.assertEqual((status, headers['content-type'], headers['cache-control']), (200, 'application/zip', 'no-store'))
+            self.assertEqual(headers['content-disposition'], 'attachment; filename="Jianming-ETF-Sync-Windows-v3.zip"')
             with zipfile.ZipFile(BytesIO(zipped)) as archive:
                 self.assertEqual({Path(name).name for name in archive.namelist()},
                                  {'launch.cmd', 'bootstrap.ps1', 'pilot.py', 'requirements-win.lock', 'README.txt'})
+                self.assertIn(b'sys.maxsize > 2**32', archive.read('Jianming-ETF-Sync/bootstrap.ps1'))
             identity = {'code': pair['code']}
             self.assertEqual((await request(app, prefix + 'claim', method='POST', data=identity, origin=site))[0], 403)
             status, _, linked = await request(app, prefix + 'claim', method='POST', data=identity)
