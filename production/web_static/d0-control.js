@@ -11,6 +11,7 @@
   let verifiedAt = null;
   let marketReady = false;
   let brokerConnected = false;
+  let brokerAvailable = false;
   let orderToken = null;
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
@@ -54,18 +55,40 @@
       byId('signal').textContent = (marketReady ? 'D0 行情已就绪；提交时会重新核对。' : closed[status.market_state] || (earliest && +earliest > Date.now() ? '信号尚未到执行时间。' : '交易时段内正在等待新鲜行情或确认信号。')) + when;
       byId('inputs').disabled = !marketReady;
       byId('broker-order-fields').disabled = !marketReady || !brokerConnected;
-      byId('broker').hidden = !status.live_orders_enabled;
-      byId('trading-mode').textContent = status.live_orders_enabled ? '手动实盘已启用 · 不自动下单' : '仅拟单 · 真实委托未启用';
-      if (status.live_orders_enabled) setBroker(await call('/api/d0-control/broker'));
+      setAvailability(status.live_orders_enabled ? 'available' : status.broker_state);
+      if (brokerAvailable) {
+        try { setBroker(await call('/api/d0-control/broker')); }
+        catch { setAvailability('unavailable'); }
+      }
       return marketReady;
     } catch (error) {
       byId('signal').textContent = error.message;
       marketReady = false;
       byId('inputs').disabled = true;
-      byId('broker-order-fields').disabled = true;
+      setAvailability('unavailable');
       return false;
     } finally {
       byId('refresh-signal').disabled = false;
+    }
+  }
+
+  function setAvailability(state) {
+    brokerAvailable = state === 'available';
+    const messages = {
+      disabled: '本站尚未启用券商连接。现在只能拟单，不能输入证券密码或发出委托。',
+      private_origin_required: '请从已配置的私有 HTTPS 地址登录券商；当前地址不接受证券凭据。',
+    };
+    const badge = byId('broker-badge');
+    badge.textContent = brokerAvailable ? '手动实盘' : state === 'disabled' ? '未开通' : '暂不可用';
+    badge.className = `pill ${brokerAvailable ? 'danger' : 'neutral'}`;
+    byId('trading-mode').textContent = brokerAvailable ? '手动实盘已启用 · 不自动下单' : '仅拟单 · 不发送真实委托';
+    const message = byId('broker-unavailable');
+    message.hidden = brokerAvailable;
+    message.textContent = messages[state] || '无法确认券商连接状态。请刷新 D0 状态后重试。';
+    byId('broker-status').hidden = !brokerAvailable;
+    if (!brokerAvailable) {
+      byId('broker-password').value = '';
+      setBroker({connected: false});
     }
   }
 
@@ -81,8 +104,8 @@
   }
 
   function setBroker(state) {
-    brokerConnected = state.connected === true;
-    byId('broker-connect').hidden = brokerConnected;
+    brokerConnected = brokerAvailable && state.connected === true;
+    byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
     byId('broker-session').hidden = !brokerConnected;
     byId('broker-order-fields').disabled = !brokerConnected || !marketReady;
     const cash = state.available_cash == null ? '' : ` · 登录时可用 ${yuan.format(Number(state.available_cash))}`;
@@ -92,6 +115,7 @@
 
   byId('broker-connect').addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!brokerAvailable) return;
     const submit = event.submitter;
     submit.disabled = true;
     const password = byId('broker-password');
@@ -227,6 +251,7 @@
     csrf = session.csrf;
     byId('notice').textContent = '已登录简明 ETF。';
     byId('workspace').hidden = false;
+    if (location.hash === '#broker') byId('broker').scrollIntoView({behavior: 'instant'});
     return refresh();
   }).catch((error) => { byId('notice').textContent = error.message; });
 })();

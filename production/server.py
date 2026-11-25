@@ -1911,11 +1911,16 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         def d0_control_status(request: Request):
             from realtime_paper_engine import TradingCalendar
 
-            source = d0_order_preview_input()
+            try:
+                source = d0_order_preview_input()
+            except PaperApiError:
+                source = {"source_status": "unavailable"}
             signal = source.get("signal") or {}
             now = datetime.now(CN)
             calendar = TradingCalendar()
-            return {"mode": "preview_only", "live_orders_enabled": emtl_web and str(request.base_url).rstrip("/") == broker_origin,
+            private_origin = str(request.base_url).rstrip("/") == broker_origin
+            broker_state = "disabled" if not emtl_web else "available" if private_origin else "private_origin_required"
+            return {"mode": "preview_only", "live_orders_enabled": broker_state == "available", "broker_state": broker_state,
                     "strategy": "D0", "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
                     "market_state": "unknown" if calendar.is_session(now.date()) is None else "open" if calendar.segment(now) else "closed",
                     "execution_day": signal.get("execution_day"), "eligible_at": signal.get("eligible_at")}
@@ -2204,8 +2209,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
     @app.get("/")
     def index():
-        control_link = '<a class="button secondary" href="/d0-control">D0 控制台</a>' if d0_web else ""
-        return HTMLResponse(ui_html.replace("__D0_CONTROL_LINK__", control_link))
+        control_link = '<a class="button secondary" href="/d0-control#broker">东方财富证券</a>' if d0_web else ""
+        broker_nav = ('<a class="nav-item" href="/d0-control#broker"><span aria-hidden="true">↗</span>'
+                      '<span>东方财富证券</span></a>') if d0_web else ""
+        return HTMLResponse(ui_html.replace("__D0_CONTROL_LINK__", control_link).replace("__BROKER_NAV__", broker_nav))
 
     app.mount("/static", StaticFiles(directory=ROOT / "web_static", check_dir=False), name="static")
     return app

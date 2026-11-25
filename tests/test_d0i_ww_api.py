@@ -121,6 +121,10 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
             cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
             status, headers, result = await request(app, path + '/status', cookie=cookie)
             self.assertEqual((status, headers['cache-control'], result['live_orders_enabled']), (200, 'no-store', False))
+            self.assertEqual(result['broker_state'], 'disabled')
+            status, _, _ = await request(app, path + '/broker/connect', method='POST', data={},
+                                         cookie=cookie, csrf=csrf, origin='https://testserver')
+            self.assertEqual(status, 404)
             for token, origin in ((None, 'https://testserver'), (csrf, None), (csrf, 'https://other.invalid')):
                 status, _, _ = await request(app, path + '/preview', method='POST', data=balances, cookie=cookie, csrf=token, origin=origin)
                 self.assertEqual(status, 403)
@@ -152,6 +156,8 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(status, 401)
                 _, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password})
                 cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
+                status, _, availability = await request(app, '/api/d0-control/status', cookie=cookie)
+                self.assertEqual((status, availability['broker_state'], availability['live_orders_enabled']), (200, 'available', True))
                 status, _, _ = await request(app, path, method='POST', data=data, cookie=cookie, csrf=csrf)
                 self.assertEqual(status, 403)
                 desk.connect.assert_not_called()
