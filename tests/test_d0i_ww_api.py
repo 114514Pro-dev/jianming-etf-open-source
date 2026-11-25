@@ -207,6 +207,69 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 desk.unbind.assert_called_once_with(owner, confirm)
             desk.close.assert_called_once()
 
+    async def test_tool_pairing_authorizes_only_same_network_and_website_session(self):
+        from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+        env = {'ETF_D0_WEB_PREVIEW': '1', 'ETF_EMTL_WEB_LIVE': '1', 'ETF_EMTL_ORIGIN': 'https://testserver',
+               'ETF_EMTL_ALLOWED_IPS': '', 'ETF_EMTL_CONNECTOR_IP': '1', 'ETF_EMTL_ORDERS_ENABLED': '0',
+               'FORWARDED_ALLOW_IPS': '172.18.0.2'}
+        with patch.dict(os.environ, {**env, 'ETF_EMTL_CONNECTOR_IP': '0'}), self.assertRaises(RuntimeError):
+            create_app(self.home)
+        with patch.dict(os.environ, {**env, 'FORWARDED_ALLOW_IPS': '*'}), self.assertRaises(RuntimeError):
+            create_app(self.home)
+        with patch.dict(os.environ, env):
+            app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
+        desk = Mock()
+        desk.bound = False
+        desk.status.return_value = {'connected': False, 'account_bound': False}
+        prefix = '/api/d0-control'
+        # Synthetic ASGI peers; no requests to these addresses.
+        peer, other_peer, proxy = '8.8.8.8', '1.1.1.1', '172.18.0.2'
+        ingress = ProxyHeadersMiddleware(app, trusted_hosts=proxy)
+        site = 'https://testserver'
+
+        async def login():
+            status, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password}, peer=peer)
+            self.assertEqual(status, 200)
+            return {'cookie': headers['set-cookie'].split(';', 1)[0], 'csrf': body['csrf']}
+
+        async def pair(browser_peer, tool_peer, session, *, forwarded_for=None):
+            status, _, body = await request(ingress, prefix + '/sync/pair', method='POST', peer=browser_peer, origin=site, **session)
+            self.assertEqual(status, 200)
+            data = {'code': body['code']}
+            claimed = await request(ingress, prefix + '/sync/claim', method='POST', data=data, peer=tool_peer,
+                                    forwarded_for=forwarded_for)
+            self.assertEqual(claimed[0], 200)
+            self.assertEqual((await request(app, prefix + '/sync/claim', method='POST', data=data, peer=browser_peer))[0], 409)
+
+        with patch('emtl_live.BrokerDesk.from_env', return_value=desk):
+            async with app.router.lifespan_context(app):
+                session = await login()
+                another_session = await login()
+                async def broker(address=peer, login_session=session):
+                    return (await request(app, prefix + '/broker', peer=address, **login_session))[0]
+
+                self.assertEqual(await broker(), 403)
+                await pair(peer, other_peer, session, forwarded_for=peer)  # Untrusted peer cannot spoof the browser IP.
+                self.assertEqual(await broker(), 403)
+                _, _, sync_state = await request(app, prefix + '/sync/status', peer=peer, **session)
+                self.assertTrue(sync_state['broker_network_mismatch'])
+                await pair(proxy, proxy, session)
+                self.assertEqual(await broker(proxy), 403)
+                await pair(peer, proxy, session, forwarded_for=peer)
+                self.assertEqual(await broker(), 200)
+                self.assertEqual(await broker(other_peer), 403)
+                self.assertEqual(await broker(peer, another_session), 403)
+                _, _, sync_state = await request(app, prefix + '/sync/status', peer=peer, **session)
+                self.assertTrue(sync_state['broker_network_authorized'])
+                self.assertNotIn(peer, json.dumps(sync_state))
+                action = prefix + '/broker/submit'
+                self.assertEqual((await request(app, action, method='POST', data={}, peer=peer, origin=site, **session))[0], 403)
+                desk.submit.assert_not_called()
+                status, _, _ = await request(app, '/api/logout', method='POST', peer=peer, origin=site, **session)
+                self.assertEqual(status, 200)
+                self.assertEqual(await broker(), 401)
+
     async def test_connector_status_is_session_bound_and_native_code_single_use(self):
         with patch.dict(os.environ, {'ETF_D0_WEB_PREVIEW': '1'}):
             app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)

@@ -1426,7 +1426,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     emtl_web = os.environ.get("ETF_EMTL_WEB_LIVE") == "1"
     broker_origin = os.environ.get("ETF_EMTL_ORIGIN", "")
     broker_orders = os.environ.get("ETF_EMTL_ORDERS_ENABLED") == "1"
-    allowed_broker_ips = set()
+    broker_connector_ip = emtl_web and os.environ.get("ETF_EMTL_CONNECTOR_IP") == "1"
+    allowed_broker_ips, proxy_ips = set(), set()
     if emtl_web:
         parsed = urlsplit(broker_origin)
         if (not d0_web or not secure or parsed.scheme != "https" or parsed.hostname not in hosts
@@ -1434,20 +1435,42 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 or broker_origin != f"https://{parsed.netloc}"):
             raise RuntimeError("EMTL 实盘要求私有 HTTPS、Secure Cookie、明确受信主机和 ETF_EMTL_ORIGIN")
         try:
-            allowed_broker_ips = {ip_address(value.strip()) for value in os.environ.get("ETF_EMTL_ALLOWED_IPS", "").split(",")}
+            raw_ips = os.environ.get("ETF_EMTL_ALLOWED_IPS", "").strip()
+            allowed_broker_ips = {ip_address(value.strip()) for value in raw_ips.split(",")} if raw_ips else set()
             proxy_ips = {ip_address(value.strip()) for value in os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1").split(",")}
-            if any(ip.is_unspecified or ip.is_multicast for ip in allowed_broker_ips | proxy_ips) or allowed_broker_ips & proxy_ips:
+            if (not (allowed_broker_ips or broker_connector_ip) or allowed_broker_ips & proxy_ips
+                    or any(ip.is_unspecified or ip.is_multicast for ip in allowed_broker_ips | proxy_ips)):
                 raise ValueError
         except ValueError:
             raise RuntimeError("EMTL 要求明确的访问 IP 白名单及可信代理 IP；不允许通配符") from None
 
-    def broker_available(request: Request):
-        if not emtl_web or str(request.base_url).rstrip("/") != broker_origin or request.client is None:
-            return False
+    def broker_at_origin(request: Request):
+        return emtl_web and str(request.base_url).rstrip("/") == broker_origin
+
+    def peer_ip(request: Request):
         try:
-            return ip_address(request.client.host) in allowed_broker_ips
+            return ip_address(request.client.host) if request.client else None
         except ValueError:
+            return None
+
+    def connector_peer(request: Request):
+        if broker_connector_ip and broker_at_origin(request):
+            ip = peer_ip(request)
+            if ip is not None and ip.is_global and not ip.is_multicast and ip not in proxy_ips and '%' not in str(ip):
+                return str(ip)
+        return None
+
+    def session_owner(request: Request):
+        return hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
+
+    def broker_available(request: Request):
+        if not broker_at_origin(request):
             return False
+        if peer_ip(request) in allowed_broker_ips:
+            return True
+        peer = connector_peer(request)
+        return bool(peer and request.cookies.get("etf_session") and connector_sync.status(
+            session_owner(request), peer=peer, include_network=True)["broker_network_authorized"])
 
     @asynccontextmanager
     async def lifespan(app):
@@ -1946,7 +1969,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
         def sync_owner(request: Request):
             require_sync_https(request)
-            return hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
+            return session_owner(request)
 
         @app.get("/api/d0-control/sync/download")
         def sync_download(request: Request):
@@ -1960,14 +1983,15 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
         @app.get("/api/d0-control/sync/status")
         def sync_status(request: Request):
-            return connector_sync.status(sync_owner(request))
+            return connector_sync.status(sync_owner(request), peer=connector_peer(request),
+                                         include_network=broker_connector_ip)
 
         @app.post("/api/d0-control/sync/pair")
         def sync_pair(request: Request):
             owner = sync_owner(request)
             if request.headers.get("origin") != str(request.base_url).rstrip("/"):
                 raise HTTPException(403, "请在原网站生成配对码。")
-            return connector_sync.start(owner)
+            return connector_sync.start(owner, peer=connector_peer(request))
 
         async def sync_payload(request: Request, keys):
             require_sync_https(request)
@@ -1988,7 +2012,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         async def sync_claim(request: Request):
             fields = await sync_payload(request, {"code"})
             try:
-                return connector_sync.claim(fields["code"])
+                return connector_sync.claim(fields["code"], peer=connector_peer(request))
             except SyncError as exc:
                 raise HTTPException(409, str(exc)) from None
 
@@ -2035,7 +2059,14 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             now = datetime.now(CN)
             calendar = TradingCalendar()
             available = broker_available(request)
-            broker_state = "disabled" if not emtl_web else "available" if available else "private_origin_required"
+            if not emtl_web:
+                broker_state = "disabled"
+            elif available:
+                broker_state = "available"
+            elif broker_connector_ip and broker_at_origin(request):
+                broker_state = "connector_pairing_required"
+            else:
+                broker_state = "private_origin_required"
             account_bound = bool(available and app.state.broker_desk and app.state.broker_desk.bound)
             return {"mode": "preview_only", "live_orders_enabled": account_bound and broker_orders,
                     "broker_orders_configured": available and broker_orders, "account_bound": account_bound, "broker_state": broker_state,
@@ -2067,7 +2098,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         def broker_access(request: Request):
             if not broker_available(request) or (request.method == "POST" and request.headers.get("origin") != broker_origin):
                 raise HTTPException(403, "请从已配置的私有 HTTPS 控制台访问券商交易。")
-            return app.state.broker_desk, hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
+            return app.state.broker_desk, session_owner(request)
 
         @app.get("/api/d0-control/broker")
         async def broker_status(request: Request):

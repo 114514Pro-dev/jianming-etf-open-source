@@ -18,6 +18,7 @@
   let orderToken = null;
   let syncTimer = null;
   let syncRequest = 0;
+  let syncNetwork = false;
   const downloadKey = 'etf-connector-bootstrap-v2-requested';
   let downloadRequested = false;
   try { downloadRequested = localStorage.getItem(downloadKey) === 'yes'; } catch { /* optional */ }
@@ -71,8 +72,15 @@
       const result = await call('/api/d0-control/sync/status');
       if (id !== syncRequest) return;
       if (result.state !== 'waiting') clearSyncCode();
-      byId('sync-status').textContent = syncMessages[result.state] || '同步状态不可用。';
-      if (result.state === 'waiting' || result.state === 'linked') {
+      const network = result.broker_network_authorized === true;
+      const networkMessage = network ? ' 网页券商网络已临时授权。' : result.broker_network_mismatch
+        ? ' 网页和工具的公网网络不一致，请使用同一网络重新配对。' : '';
+      byId('sync-status').textContent = (syncMessages[result.state] || '同步状态不可用。') + networkMessage;
+      if (network !== syncNetwork) {
+        syncNetwork = network;
+        void refresh();
+      }
+      if (network || result.state === 'waiting' || result.state === 'linked') {
         syncTimer = setTimeout(readSyncStatus, 2500);
       }
     } catch (error) {
@@ -150,9 +158,10 @@
     const messages = {
       disabled: '网页实盘尚未开启。本机工具可配对和收信；这不会开启真实委托。',
       private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
+      connector_pairing_required: '请在当前网络点击「开始配对」，并在本机工具输入配对码。配对成功后，网站会自动授权此网页会话的网络，无需填公网 IP。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? (accountBound ? '网页仅只读核对' : '待首次授权') : state === 'disabled' ? '网页实盘未开启' : '网页实盘暂不可用';
+    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? (accountBound ? '网页仅只读核对' : '待首次授权') : state === 'disabled' ? '网页实盘未开启' : state === 'connector_pairing_required' ? '等待网络授权' : '网页实盘暂不可用';
     badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
     byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders;

@@ -22,6 +22,25 @@ class SyncExpiryTests(unittest.TestCase):
         self.now += self.sync.link_seconds
         self.assertEqual(self.sync.status('browser'), {'state': 'not_linked'})
 
+    def test_network_access_expires_and_cannot_be_extended_by_status_report(self):
+        peer = '8.8.8.8'
+
+        def authorized():
+            return self.sync.status('browser', peer=peer, include_network=True)['broker_network_authorized']
+
+        pair = self.sync.start('browser', peer=peer)['code']
+        self.assertFalse(authorized())
+        token = self.sync.claim(pair, peer=peer)['sync_token']
+        self.assertTrue(authorized())
+        self.now += self.sync.link_seconds - 1
+        self.sync.report(token, 'verified')
+        self.assertTrue(authorized())
+        self.now += 1
+        self.assertFalse(authorized())
+        self.sync.claim(self.sync.start('browser', peer=peer)['code'], peer=peer)
+        self.sync.start('browser', peer=peer)
+        self.assertFalse(authorized())
+
     def test_new_pair_and_logout_revoke_previous_token(self):
         token = self.sync.claim(self.sync.start('browser')['code'])['sync_token']
         pair = self.sync.start('browser')['code']
