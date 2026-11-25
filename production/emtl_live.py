@@ -5,6 +5,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from hashlib import sha256
 from importlib.metadata import version
 import os
 from pathlib import Path
@@ -19,12 +20,26 @@ from d0_order_math import LOT, MAX_ORDER_QTY, SYMBOLS
 from realtime_paper_engine import D, TZ, dt
 
 CONFIRMATION = "确认实盘"
-SECURITIES = {s: (s[2:], "SA" if s.startswith("sz") else "HA") for s in SYMBOLS}
-TERMINAL = frozenset({"已成", "已成交", "已撤", "已撤单", "废单", "部撤"})
+DEFAULT_SINGLE = Decimal("800000")
+DEFAULT_DAILY = HARD_LIMIT = Decimal("5000000")
 
 
 class LiveError(ValueError):
-    """Only fixed, display-safe error messages cross the API boundary."""
+    """Only display-safe broker and validation messages cross the API boundary."""
+
+
+def _limits(single, daily):
+    if not all(isinstance(value, str) and re.fullmatch(r"[0-9]{1,7}(?:\.[0-9]{1,2})?", value)
+               for value in (single, daily)):
+        raise LiveError("限额须为正数，最多两位小数。")
+    single, daily = D(single), D(daily)
+    if not 0 < single <= daily <= HARD_LIMIT:
+        raise LiveError("单笔限额不能高于单日限额，两者均不能超过 500 万元。")
+    return single, daily
+
+
+SECURITIES = {s: (s[2:], "SA" if s.startswith("sz") else "HA") for s in SYMBOLS}
+TERMINAL = frozenset({"已成", "已成交", "已撤", "已撤单", "废单", "部撤"})
 
 
 def _rows(payload):
@@ -104,6 +119,15 @@ class BrokerDesk:
             db.execute("CREATE TABLE IF NOT EXISTS intent (id TEXT PRIMARY KEY, day TEXT NOT NULL, symbol TEXT NOT NULL, "
                        "side TEXT NOT NULL, price TEXT NOT NULL, qty INTEGER NOT NULL, notional TEXT NOT NULL, "
                        "state TEXT NOT NULL, receipt TEXT)")
+            db.execute("CREATE TABLE IF NOT EXISTS broker_policy (id INTEGER PRIMARY KEY CHECK(id = 1), "
+                       "account_tag TEXT NOT NULL, single_cap TEXT, daily_cap TEXT)")
+            account_tag = sha256(account.encode()).hexdigest()
+            db.execute("INSERT OR IGNORE INTO broker_policy VALUES (1, ?, NULL, NULL)", (account_tag,))
+            row = db.execute("SELECT * FROM broker_policy WHERE id=1").fetchone()
+            if row["account_tag"] != account_tag:
+                raise RuntimeError("委托日志属于另一资金账号；须人工核对后使用独立日志。")
+            if row["single_cap"] is not None:
+                self.single_limit, self.daily_limit = _limits(row["single_cap"], row["daily_cap"])
 
     @classmethod
     def from_env(cls, path):
@@ -120,12 +144,8 @@ class BrokerDesk:
         account = os.environ.get("ETF_EMTL_ACCOUNT", "")
         if not re.fullmatch(r"[0-9]{6,20}", account):
             raise RuntimeError("请先配置允许连接的 ETF_EMTL_ACCOUNT")
-        try:
-            single, daily = (D(os.environ[key]) for key in ("ETF_EMTL_MAX_ORDER_CNY", "ETF_EMTL_MAX_DAY_CNY"))
-            if not 0 < single <= daily <= 10_000_000:
-                raise ValueError
-        except (KeyError, ValueError):
-            raise RuntimeError("请设置有效的 EMTL 单笔与单日委托金额上限") from None
+        single, daily = _limits(os.environ.get("ETF_EMTL_MAX_ORDER_CNY", str(DEFAULT_SINGLE)),
+                                os.environ.get("ETF_EMTL_MAX_DAY_CNY", str(DEFAULT_DAILY)))
         return cls(path, account, single, daily, lambda **settings: TradingClient(session_factory=direct_session, **settings))
 
     def _db(self):
@@ -206,15 +226,29 @@ class BrokerDesk:
             self.timer = threading.Timer(self.connection_seconds, self._expire, args=(client,))
             self.timer.daemon = True
             self.timer.start()
-            return {"connected": True, "account_tail": self.account[-4:], **account}
+            return {"connected": True, "account_tail": self.account[-4:], "limits": self._public_limits(), **account}
 
     def status(self, owner):
         with self.lock:
             client = self._current(owner)
             if not client:
                 return {"connected": False}
-            return {"connected": True, "account_tail": self.account[-4:],
+            return {"connected": True, "account_tail": self.account[-4:], "limits": self._public_limits(),
                     "remaining_seconds": max(0, int(self.expires - time.monotonic()))}
+
+    def _public_limits(self):
+        return {"single_cny": str(self.single_limit), "daily_cny": str(self.daily_limit), "maximum_cny": str(HARD_LIMIT)}
+
+    def update_limits(self, owner, fields):
+        with self.lock:
+            if not self._current(owner):
+                raise LiveError("请先连接已授权的东方财富证券账号。")
+            single, daily = _limits(fields.get("single_cny"), fields.get("daily_cny"))
+            with closing(self._db()) as db, db:
+                db.execute("UPDATE broker_policy SET single_cap=?, daily_cap=? WHERE id=1", (str(single), str(daily)))
+            self.single_limit, self.daily_limit = single, daily
+            self.draft = None
+            return self._public_limits()
 
     def _readiness(self, order, read_market):
         try:

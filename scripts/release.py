@@ -22,6 +22,7 @@ def digest(file):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--with-emtl', action='store_true', help='Include the locked Linux amd64 EMTL dependencies; does not enable trading')
     options = parser.parse_args()
     if run('git','branch','--show-current').decode().strip() != 'main':
         raise SystemExit('Production builds require main')
@@ -57,6 +58,7 @@ def main():
     dockerfile = source / 'Dockerfile'
     subprocess.run(['docker','build','--progress','plain','--build-arg','GIT_REVISION='+revision,
         '--build-arg','SOURCE_ARCHIVE_SHA='+digest(source_archive),
+        '--build-arg','WITH_EMTL='+('1' if options.with_emtl else '0'),
         '-f',str(dockerfile),'-t',tag,str(source)],check=True,cwd=ROOT)
     image = json.loads(run('docker','image','inspect',tag))[0]
     if image['Config']['Labels'].get('org.opencontainers.image.revision') != revision:

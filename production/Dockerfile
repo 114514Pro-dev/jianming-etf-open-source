@@ -8,6 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 RELEASE_REVISION=$GIT_REVISION
 COPY requirements.lock /app/requirements.lock
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock \
     && groupadd --gid 10001 etf && useradd --uid 10001 --gid etf --no-create-home etf
+ARG WITH_EMTL=0
+COPY requirements-emtl.lock /app/requirements-emtl.lock
+RUN if [ "$WITH_EMTL" = 1 ]; then pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements-emtl.lock && pip check; fi
 COPY --chown=10001:10001 . /app
 USER 10001:10001
 EXPOSE 8000

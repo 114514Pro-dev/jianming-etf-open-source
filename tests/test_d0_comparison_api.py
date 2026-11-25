@@ -19,7 +19,8 @@ PATH = '/api/realtime-paper/comparison'
 IDENTITY = 'synthetic_D0-account_2026'
 
 
-async def request(app, path, *, query_string=b'', method='GET', data=None, cookie=None, csrf=None, origin=None):
+async def request(app, path, *, query_string=b'', method='GET', data=None, cookie=None, csrf=None, origin=None,
+                  peer='127.0.0.1'):
     """Small ASGI client that keeps the path separate from the query bytes."""
     body = b'' if data is None else json.dumps(data).encode()
     headers = [(b'host', b'testserver'), (b'content-length', str(len(body)).encode())]
@@ -31,7 +32,7 @@ async def request(app, path, *, query_string=b'', method='GET', data=None, cooki
     query = query_string.encode('ascii') if isinstance(query_string, str) else query_string
     scope = dict(type='http', asgi={'version': '3.0'}, http_version='1.1', method=method,
                  scheme='https', path=path, raw_path=path.encode(), query_string=query,
-                 root_path='', headers=headers, client=('127.0.0.1', 52000), server=('testserver', 443))
+                 root_path='', headers=headers, client=(peer, 52000), server=('testserver', 443))
     sent, output = False, []
 
     async def receive():

@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>D0 控制台 · 东方财富证券</title>
+  <meta name="theme-color" content="#f4f2ec">
+  <script src="/static/dashboard-theme.js?v=__UI_VERSION__"></script>
   <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
   <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
-  <script src="/static/dashboard-theme.js?v=__UI_VERSION__" defer></script>
   <script defer src="/static/d0-control.js?v=__UI_VERSION__"></script>
   <style>
     body { margin: 0; }
-    main { max-width: 54rem; margin: 2rem auto; padding: 0 1rem; }
+    main { max-width: 72rem; margin: 2rem auto; padding: 0 1rem; }
     .control-panel { margin: 1rem 0; padding: 1rem; }
     .control-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .7rem; }
     .control-fields label { display: grid; gap: .25rem; }
@@ -23,7 +24,7 @@
 </head>
 <body class="d0-console">
   <main>
-    <nav aria-label="导航" class="console-nav"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a><button type="button" class="theme-toggle" data-theme-toggle aria-label="深色模式" aria-pressed="false">◐</button></nav>
+    <nav aria-label="导航" class="console-nav"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a><button type="button" class="theme-toggle" data-theme-toggle aria-label="深色模式" aria-pressed="false"><span data-theme-icon aria-hidden="true">☼</span><span data-theme-label aria-hidden="true">浅色</span></button></nav>
     <header class="console-hero">
       <span class="eyebrow">D0 / TRADING DESK</span>
       <h1>D0 控制台</h1>
@@ -33,25 +34,34 @@
     <p id="notice" role="status" aria-live="polite">正在检查登录状态…</p>
     <p id="login" hidden><a href="/" class="button secondary">先登录简明 ETF</a>，再打开本页。</p>
     <section id="workspace" hidden>
-      <section class="panel control-panel" aria-labelledby="signal-title">
-        <h2 id="signal-title">1. 看信号</h2>
-        <p id="signal" aria-live="polite">正在读取…</p>
-        <button id="refresh-signal" type="button" class="button secondary">刷新 D0 状态</button>
-      </section>
-      <section id="broker" class="panel control-panel" aria-labelledby="broker-title" hidden>
-        <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span class="pill danger">真实委托</span></div>
-        <p class="small muted">这里是独立的券商登录，不是网站登录。连接不会下单；连接最多保留 5 分钟。</p>
-        <form id="broker-connect" method="post" autocomplete="off">
+      <section id="broker" class="panel control-panel" aria-labelledby="broker-title">
+        <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span id="broker-badge" class="pill neutral">检查中</span></div>
+        <p class="small muted">独立于网站登录和 D0 拟单。连接券商不会下单；连接最多保留 5 分钟。</p>
+        <p id="broker-unavailable" class="broker-unavailable" role="status">正在检查此站点是否允许实盘连接…</p>
+        <form id="broker-connect" method="post" autocomplete="off" hidden>
           <div class="control-fields">
             <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
             <label>证券交易密码<input id="broker-password" type="password" maxlength="128" required autocomplete="new-password"></label>
           </div>
           <button type="submit" class="button primary">登录东方财富证券</button>
         </form>
-        <output id="broker-status" aria-live="polite">尚未连接。</output>
+        <output id="broker-status" aria-live="polite" hidden>尚未连接。</output>
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
-          <form id="broker-order" method="post" autocomplete="off">
+          <p id="broker-holdings" class="small muted" hidden></p>
+          <details id="broker-settings" hidden>
+            <summary>设置 · 实盘委托限额</summary>
+            <form id="broker-limits" method="post" autocomplete="off">
+              <p class="small muted">仅约束此网页的买卖委托，两项上限均为 500 万元。调低限额不会清除今日已提交金额。</p>
+              <div class="control-fields">
+                <label>单笔上限（元）<input id="broker-single" type="number" min="0.01" max="5000000" step="0.01" required></label>
+                <label>单日累计上限（元）<input id="broker-daily" type="number" min="0.01" max="5000000" step="0.01" required></label>
+              </div>
+              <button type="submit" class="button secondary">保存委托限额</button>
+              <output id="broker-limit-result" aria-live="polite"></output>
+            </form>
+          </details>
+          <form id="broker-order" method="post" autocomplete="off" hidden>
             <fieldset id="broker-order-fields" disabled>
               <div class="control-fields">
                 <label>ETF<select id="broker-symbol" required><option value="sz159915">创业板 ETF 159915</option><option value="sh512800">银行 ETF 512800</option><option value="sh518880">黄金 ETF 518880</option><option value="sh511010">国债 ETF 511010</option></select></label>
@@ -69,6 +79,11 @@
           </form>
           <output id="broker-result" aria-live="polite"></output>
         </div>
+      </section>
+      <section class="panel control-panel" aria-labelledby="signal-title">
+        <h2 id="signal-title">1. 看信号</h2>
+        <p id="signal" aria-live="polite">正在读取…</p>
+        <button id="refresh-signal" type="button" class="button secondary">刷新 D0 状态</button>
       </section>
       <div class="control-grid">
       <section class="panel control-panel" aria-labelledby="preview-title">
@@ -107,7 +122,7 @@
             <tbody id="orders"></tbody>
           </table>
         </div>
-        <p>拟单不等于委托。真实委托使用上方独立入口，本页不会将拟单自动提交。</p>
+        <p class="small muted">拟单不会自动提交。实盘连接状态请查看<a href="#broker">东方财富证券</a>卡片。</p>
       </section>
       </div>
     </section>

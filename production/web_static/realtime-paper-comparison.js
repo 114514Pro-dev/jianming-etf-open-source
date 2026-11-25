@@ -4,7 +4,7 @@
   const VERSION = 'd0-performance-comparison-v1';
   const SERIES = ['account', 'market', 'chinext', 'd0'];
   const LABELS = {account: '模拟账户', market: '上证指数', chinext: '创业板指数', d0: 'D0模型组合'};
-  const COLORS = {account: '#6de1c2', market: '#77b9ff', chinext: '#e5b86b', d0: '#c9a2ff'};
+  const COLORS = {account: 'var(--accent)', market: 'var(--chart-alt)', chinext: 'var(--chart-third)', d0: 'var(--chart-fourth)'};
   const EN = {
     '尚未选择当前策略账户。': 'Select an account for the current strategy.',
     'D0I-BOND-WW 周线择债模型': 'D0I-BOND-WW weekly bond model',
@@ -371,7 +371,7 @@
         const connect = previous && previous.segment_id === row.segment_id && !point.break_before;
         path += `${connect ? 'L' : 'M'}${x(row.at).toFixed(3)},${y(ratio).toFixed(3)} `;
         const dot = svgNode('circle', {cx: x(row.at), cy: y(ratio), r: point.phase === 'intraday_estimate' ? 4.5 : 2.7,
-          fill: point.phase === 'intraday_estimate' ? 'var(--surface, #111d2d)' : COLORS[series.id], stroke: COLORS[series.id], 'stroke-width': 1.8});
+          fill: point.phase === 'intraday_estimate' ? 'var(--surface)' : COLORS[series.id], stroke: COLORS[series.id], 'stroke-width': 1.8});
         dot.append(svgNode('title', {}, seriesLabel(series.id) + ' · ' + rowLabel(row) + ' · ' + percent(ratio) + ' · ' + pointPhase(point))); svg.append(dot); previous = row;
       }
       svg.append(svgNode('path', {d: path.trim(), fill: 'none', stroke: COLORS[series.id], 'stroke-width': 2.3, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'rtpc-line'}));

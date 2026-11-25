@@ -493,7 +493,7 @@
     for(let i=0;i<4;i++){const v=min+(max-min)*i/3,yy=y(v);node('line',{x1:65,x2:800,y1:yy,y2:yy,class:'chart-grid'});node('text',{x:55,y:yy+4,'text-anchor':'end',class:'chart-label'},mode==='drawdown'?`${v.toFixed(1)}%`:`${(v/10000).toFixed(1)}万`);}
     const stride=Math.max(1,Math.floor(rows.length/800));const points=rows.map((r,i)=>({r,i})).filter((v,i)=>i%stride===0||i===rows.length-1);const path=points.map(({r,i},j)=>`${j?'L':'M'} ${x(i)} ${y(r.equity)}`).join(' ');
     node('path',{d:`${path} L ${x(rows.length-1)} 220 L 65 220 Z`,class:'chart-fill'});node('path',{d:path,class:'chart-path'});
-    if(rows.length===1)node('circle',{cx:x(0),cy:y(rows[0].equity),r:4,fill:'#6de1c2'});
+    if(rows.length===1)node('circle',{cx:x(0),cy:y(rows[0].equity),r:4,fill:'var(--accent)'});
     node('text',{x:65,y:249,class:'chart-label'},String(rows[0].date).slice(0,10));node('text',{x:800,y:249,'text-anchor':'end',class:'chart-label'},String(rows.at(-1).date).slice(0,10));target.append(svg);
     const note=el('div','chart-note');note.append(el('span','',`${rows.length.toLocaleString('zh-CN')} 个实际记录点`),el('span','',mode==='drawdown'?`期末距高点 ${rows.at(-1).equity.toFixed(2)}%`:`期末 ¥ ${money(rows.at(-1).equity)}`));target.append(note);
   }
