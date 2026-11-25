@@ -7,6 +7,7 @@
 *.py[cod]
 __pycache__/
 .venv/
+.venv-emtl/
 node_modules/
 outputs/
 runtime-data/

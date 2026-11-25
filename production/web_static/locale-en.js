@@ -35,6 +35,8 @@ window.ETF_EN = Object.fromEntries(`
 登录工作台	Sign in
 仅用于模拟交易。后台可按已确认周期自动记账，不连接实盘。	Paper trading only. The server can update accounts using confirmed periods. No live brokerage connection.
 工作台	Workspace
+策略研究	Strategy research
+市场与公司	Markets and companies
 主导航	Main navigation
 市场总览	Market overview
 海外专区	Overseas markets

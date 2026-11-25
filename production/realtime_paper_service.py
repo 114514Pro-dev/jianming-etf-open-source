@@ -11,16 +11,16 @@ from pathlib import Path
 import sqlite3
 import threading
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 from time import monotonic
+from d0_order_math import LOT, MAX_ORDER_QTY, SYMBOLS, commission, limit_price, target_quantity
 from realtime_paper_history import AcceptedHistory, HistoryContinuityError
 from realtime_paper_charts import extract_indicator_histories, unavailable as unavailable_chart_history
 from realtime_paper_price_history import extract_daily_price_histories, unavailable as unavailable_price_history
 from realtime_paper_intraday_charts import IntradayChartReader
 
 TZ = ZoneInfo("Asia/Shanghai")
-SYMBOLS = ("sz159915", "sh512800", "sh518880", "sh511010")
 ACTIVE = {"pending", "submitted", "accepted", "open", "partially_filled"}
 MODEL = {
     "name": "公开报价观察后估计成交",
@@ -756,28 +756,19 @@ class PaperService:
     def _targets(self, snapshot, signal, batch):
         positions = self._positions(snapshot)
         equity = self._cash(snapshot) + sum(self._quantity(row) * _decimal(batch["quotes"].get(symbol, {}).get("price")) for symbol, row in positions.items())
-        return {symbol: int(max(Decimal("0"), equity * _decimal(signal.get("weights", {}).get(symbol))) / _decimal(batch["quotes"][symbol]["price"], "1") / 100) * 100 for symbol in SYMBOLS}
+        return {symbol: target_quantity(equity, _decimal(signal.get("weights", {}).get(symbol)),
+                                        _decimal(batch["quotes"][symbol]["price"], "1")) for symbol in SYMBOLS}
 
     @staticmethod
     def _limit(symbol, side, quote):
-        tick = Decimal("0.001")
-        price = Decimal(str(quote["price"]))
-        previous = Decimal(str(quote["previous_close"]))
-        # Verified instrument band; ledger validation remains authoritative.
-        band = Decimal("0.20") if symbol == "sz159915" else Decimal("0.10")
-        tolerance = Decimal("1.002") if side == "buy" else Decimal("0.998")
-        rounding = ROUND_CEILING if side == "buy" else ROUND_FLOOR
-        limit = (price * tolerance / tick).to_integral_value(rounding=rounding) * tick
-        upper = (previous * (Decimal("1") + band) / tick).to_integral_value(rounding=ROUND_FLOOR) * tick
-        lower = (previous * (Decimal("1") - band) / tick).to_integral_value(rounding=ROUND_CEILING) * tick
-        return max(lower, min(upper, limit))
+        return limit_price(symbol, side, Decimal(str(quote["price"])), Decimal(str(quote["previous_close"])))
 
     @staticmethod
     def _fee(snapshot, notional):
         fees = snapshot.get("fees", (snapshot.get("account") or {}).get("fees", {})) or {}
         rate = _decimal(fees.get("commission_rate", fees.get("rate", "0.0003")))
         minimum = _decimal(fees.get("min_fee", fees.get("minimum", fees.get("minimum_commission", fees.get("min_commission", "5")))))
-        return max(minimum, rate * notional) if notional > 0 else Decimal("0")
+        return commission(notional, rate, minimum)
 
     def _continuous(self, current):
         cal = getattr(self.ledger, "calendar", None)
@@ -843,16 +834,16 @@ class PaperService:
                 position = self._positions(snapshot).get(symbol, {})
                 current_qty = self._quantity(position)
                 gap = targets[symbol] - current_qty
-                quantity = min(1_000_000, max(0, gap if side == "buy" else -gap) // 100 * 100)
+                quantity = min(MAX_ORDER_QTY, max(0, gap if side == "buy" else -gap) // LOT * LOT)
                 if side == "sell":
                     available = int(_num(position.get("available_qty", position.get("available_quantity", position.get("sellable", position.get("sellable_quantity", current_qty))))))
-                    quantity = min(quantity, available // 100 * 100)
+                    quantity = min(quantity, available // LOT * LOT)
                 limit = self._limit(symbol, side, batch["quotes"][symbol])
                 if side == "buy":
                     available = self._available(snapshot)
-                    quantity = min(quantity, int(available / limit / 100) * 100)
+                    quantity = min(quantity, int(available / limit / LOT) * LOT)
                     while quantity > 0 and quantity * limit + self._fee(snapshot, quantity * limit) > available:
-                        quantity -= 100
+                        quantity -= LOT
                 if quantity <= 0:
                     continue
                 self._write(self.ledger.submit, symbol=symbol, side=side, qty=quantity, limit_price=str(limit), signal_id=signal["id"], client_order_id=client_id)
@@ -946,6 +937,34 @@ class PaperService:
                 self._write(self.ledger.ingest_batch, batch)
                 self._plan(self.ledger.snapshot(), signal, batch)
             return self.snapshot()
+
+    def order_preview_input(self):
+        """Read-only D0 inputs; do not export paper balances or the ledger history."""
+        if self.strategy != "D0":
+            raise ValueError("order previews support D0 only")
+        with self._lock:
+            raw = self.ledger.snapshot()
+            state = self._source_state
+            signal = raw.get("signal")
+            batch = self._last_batch if state.get("source_status") == "ready" else None
+            observation = None
+            if batch is not None:
+                quotes = {}
+                for symbol in SYMBOLS:
+                    row = batch["quotes"].get(symbol)
+                    if not isinstance(row, dict):
+                        continue
+                    quote = {key: row.get(key) for key in ("symbol", "price", "previous_close", "quote_at", "started", "status")}
+                    status = (raw.get("quotes") or {}).get(symbol, {}).get("status")
+                    if status in {"halted", "unknown"}:
+                        quote["status"] = status
+                    quotes[symbol] = quote
+                observation = {"received_at": batch.get("received_at"), "quotes": quotes}
+            fields = ("id", "strategy", "valid", "confirmed_day", "execution_day", "eligible_at", "data_cutoff", "known_at", "weights")
+            return {"contract_version": "d0-order-preview-input-v1", "strategy": self.strategy,
+                    "source_status": state.get("source_status"), "historical_seed": state.get("historical_seed"),
+                    "signal": {key: copy.deepcopy(signal.get(key)) for key in fields} if isinstance(signal, dict) else None,
+                    "market_observation": observation}
 
     def export_live_signal(self):
         from live_signal import project_live_signal

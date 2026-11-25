@@ -20,6 +20,7 @@ from realtime_paper_backup import (snapshot_business_for_backup, BusinessBackupE
     PAPER_PATH, WW_PAPER_PATH, HISTORY_PATHS)
 from realtime_paper_engine import PaperLedger
 from test_d0_comparison_api import request, SyntheticRuntime
+from test_emtl_d0 import inputs as preview_inputs, NOW as PREVIEW_NOW
 
 WW = 'D0I-BOND-WW'
 
@@ -72,7 +73,7 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
         auth.chmod(0o600)
         self.d0, self.ww = SyntheticPaper('D0'), SyntheticPaper(WW)
         self.stack = ExitStack()
-        self.stack.enter_context(patch.dict(os.environ, {'ETF_WEB_PASSWORD_HASH': '',
+        self.stack.enter_context(patch.dict(os.environ, {'ETF_WEB_PASSWORD_HASH': '', 'ETF_D0_WEB_PREVIEW': '0',
             'ETF_WEB_SECURE_COOKIE': '1', 'ETF_WEB_TRUSTED_HOSTS': 'testserver'}))
         self.stack.enter_context(patch('server.Runtime', SyntheticRuntime))
         self.stack.enter_context(patch('server.shutdown_runtime', new_callable=AsyncMock))
@@ -104,6 +105,34 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
         query = '' if strategy is None else 'strategy=' + strategy
         return await request(self.app, path, query_string=query, method=method, data=data,
                              cookie=self.cookie, csrf=self.csrf if csrf else None)
+
+    async def test_web_control_opt_in_auth_same_origin_and_preview_only(self):
+        path = '/api/d0-control'
+        status, _, _ = await self.call(path + '/status')
+        self.assertEqual(status, 404)
+        snapshot, balances = preview_inputs()
+        self.d0.order_preview_input = lambda: snapshot
+        with patch.dict(os.environ, {'ETF_D0_WEB_PREVIEW': '1'}):
+            app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
+        async with app.router.lifespan_context(app):
+            status, _, _ = await request(app, path + '/status')
+            self.assertEqual(status, 401)
+            status, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password})
+            cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
+            status, headers, result = await request(app, path + '/status', cookie=cookie)
+            self.assertEqual((status, headers['cache-control'], result['live_orders_enabled']), (200, 'no-store', False))
+            for token, origin in ((None, 'https://testserver'), (csrf, None), (csrf, 'https://other.invalid')):
+                status, _, _ = await request(app, path + '/preview', method='POST', data=balances, cookie=cookie, csrf=token, origin=origin)
+                self.assertEqual(status, 403)
+            with patch('server.datetime', wraps=datetime) as clock:
+                clock.now.return_value = PREVIEW_NOW
+                status, _, result = await request(app, path + '/preview', method='POST', data=balances,
+                                                  cookie=cookie, csrf=csrf, origin='https://testserver')
+            self.assertEqual((status, result['mode'], result['orders'][0]['quantity']), (200, 'preview_only', 500))
+            status, _, _ = await request(app, path + '/submit', method='POST', data=balances,
+                                         cookie=cookie, csrf=csrf, origin='https://testserver')
+            self.assertEqual(status, 404)
+            self.assertFalse(self.d0.actions)
 
     async def test_default_and_ww_empty_snapshots_are_distinct_and_stopped(self):
         for code in ('D0', WW):

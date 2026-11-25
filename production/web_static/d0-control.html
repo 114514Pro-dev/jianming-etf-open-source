@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D0 控制台 · 拟单</title>
+  <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
+  <script defer src="/static/d0-control.js?v=__UI_VERSION__"></script>
+  <style>
+    body { margin: 0; }
+    main { max-width: 54rem; margin: 2rem auto; padding: 0 1rem; }
+    .control-panel { margin: 1rem 0; padding: 1rem; }
+    .control-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .7rem; }
+    .control-fields label { display: grid; gap: .25rem; }
+    td, th { text-align: left; padding: .4rem .5rem; }
+    td input { width: 100%; max-width: 8rem; }
+    .control-table { width: 100%; }
+    fieldset { border: 0; padding: 0; min-width: 0; }
+    output { display: block; margin: .75rem 0; }
+  </style>
+</head>
+<body class="d0-console">
+  <main>
+    <nav aria-label="导航"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a></nav>
+    <header class="console-hero">
+      <span class="eyebrow">D0 / ORDER PREVIEW</span>
+      <h1>D0 控制台</h1>
+      <p class="pill neutral">仅拟单 · 真实交易未接通</p>
+      <p>按当前账户权益计算目标仓位，不固定使用 87 万元。D0 留现金时，拟单也保留现金。</p>
+    </header>
+    <p id="notice" role="status" aria-live="polite">正在检查登录状态…</p>
+    <p id="login" hidden><a href="/" class="button secondary">先登录简明 ETF</a>，再打开本页。</p>
+    <section id="workspace" hidden>
+      <section class="panel control-panel" aria-labelledby="signal-title">
+        <h2 id="signal-title">1. 看信号</h2>
+        <p id="signal" aria-live="polite">正在读取…</p>
+        <button id="refresh-signal" type="button" class="button secondary">刷新 D0 状态</button>
+      </section>
+      <div class="control-grid">
+      <section class="panel control-panel" aria-labelledby="preview-title">
+        <h2 id="preview-title">2. 核对资金和持仓</h2>
+        <p>以下数据只用于本次算单，不会保存。请从券商 App 核对；如无持仓，填写 0。暂不读取或要求任何证券账户、密码或验证码。</p>
+        <form id="balances" autocomplete="off">
+          <fieldset id="inputs" disabled>
+            <div class="control-fields">
+              <label>总现金（不含 ETF 市值，元）<input name="cash" type="number" min="0" step="0.01" required></label>
+              <label>可用于买入（元）<input name="available_cash" type="number" min="0" step="0.01" required></label>
+              <label>佣金率（例：0.0003）<input name="commission_rate" type="number" min="0" max="1" step="any" required></label>
+              <label>最低佣金（元）<input name="min_fee" type="number" min="0" step="0.01" required></label>
+            </div>
+            <table class="control-table">
+              <caption>原版 D0 四只 ETF</caption>
+              <thead><tr><th scope="col">ETF</th><th scope="col">持有份额</th><th scope="col">可卖份额</th></tr></thead>
+              <tbody id="positions"></tbody>
+            </table>
+            <p><label><input type="checkbox" id="verified" required> 我刚核对这些数据，且没有未结委托</label></p>
+            <button type="submit" class="button primary">生成 D0 拟单</button>
+          </fieldset>
+        </form>
+      </section>
+      <section class="panel control-panel" aria-labelledby="orders-title">
+        <h2 id="orders-title">3. 看目标配置与拟单</h2>
+        <output id="result" aria-live="polite">尚未生成拟单。</output>
+        <section id="allocation" class="allocation-chart" aria-labelledby="allocation-title" hidden>
+          <h3 id="allocation-title">目标配置</h3>
+          <p>计算权益：<strong id="allocation-equity" class="allocation-balance allocation-number"></strong></p>
+          <div id="allocation-bars"></div>
+          <p class="small muted">目标金额未按整手取整，不等于实际委托金额。</p>
+        </section>
+        <div class="control-scroll">
+          <table class="control-table" id="orders-table" hidden>
+            <thead><tr><th scope="col">ETF</th><th scope="col">方向</th><th scope="col">数量</th><th scope="col">限价</th></tr></thead>
+            <tbody id="orders"></tbody>
+          </table>
+        </div>
+        <p>拟单不等于委托。当前版本没有真实下单、撤单或自动启动入口。</p>
+      </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

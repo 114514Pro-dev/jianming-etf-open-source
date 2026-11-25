@@ -396,7 +396,7 @@ def frontend_release():
     """One release identity for HTML and its assets, computed at app startup."""
     folder = ROOT / "web_static"
     digest = hashlib.sha256()
-    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js"):
+    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js", "d0-control.html", "d0-control.js", "dashboard.css"):
         digest.update(name.encode())
         digest.update((folder / name).read_bytes())
     for name in ("realtime-paper.js", "realtime-paper.css", "realtime-paper-comparison.js", "realtime-paper-comparison.css",
@@ -1873,6 +1873,47 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 for code, name, attr in (("D0", "原D0四资产", "realtime_paper"),
                                         ("D0I-BOND-WW", "双股择时 周线择债", "ww_paper"))]}
         return result
+
+    @app.get("/api/realtime-paper/d0-order-preview-input")
+    def d0_order_preview_input():
+        read = getattr(paper_service_instance("D0"), "order_preview_input", None)
+        if not callable(read):
+            raise PaperApiError("PAPER_UNAVAILABLE", "D0 拟单资料暂不可用", 503)
+        return read()
+
+    if os.environ.get("ETF_D0_WEB_PREVIEW") == "1":
+        @app.get("/d0-control")
+        def d0_control_page():
+            page = (ROOT / "web_static" / "d0-control.html").read_text("utf-8")
+            return HTMLResponse(page.replace("__UI_VERSION__", ui_version), headers={"Cache-Control": "no-store"})
+
+        @app.get("/api/d0-control/status")
+        def d0_control_status():
+            source = d0_order_preview_input()
+            signal = source.get("signal") or {}
+            return {"mode": "preview_only", "live_orders_enabled": False, "strategy": "D0",
+                    "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
+                    "execution_day": signal.get("execution_day"), "eligible_at": signal.get("eligible_at")}
+
+        @app.post("/api/d0-control/preview")
+        async def d0_control_preview(request: Request):
+            from d0_order_preview import preview
+
+            if request.headers.get("origin") != str(request.base_url).rstrip("/"):
+                raise HTTPException(403, "拟单必须在控制台的网页内操作")
+            try:
+                balances = await request.json()
+            except (ValueError, UnicodeError):
+                raise HTTPException(400, "资金持仓格式无效") from None
+
+            def calculate():
+                return preview(d0_order_preview_input(), balances, now=datetime.now(CN))
+
+            try:
+                return await asyncio.to_thread(calculate)
+            except (ValueError, ArithmeticError) as exc:
+                detail = str(exc) if isinstance(exc, ValueError) else "资金或行情计算异常"
+                raise PaperApiError("D0_PREVIEW_UNAVAILABLE", detail, 409) from None
 
     @app.get("/api/live-trading/signal")
     async def live_trading_signal(request: Request):
