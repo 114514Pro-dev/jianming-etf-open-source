@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from hashlib import sha256
 from pathlib import Path
 import tempfile
 import unittest
@@ -136,6 +137,48 @@ class ManualEmtlTests(unittest.TestCase):
         self.assertEqual(self.desk.status('browser-one')['limits']['daily_cny'], '5000000')
         with self.assertRaisesRegex(RuntimeError, '另一资金账号'):
             BrokerDesk(self.path, '000006789', Decimal('1000'), Decimal('8000'), Broker)
+
+    def test_first_enrollment_checks_broker_then_locks_account_permanently(self):
+        ledger = self.path.with_name('enrollment.sqlite3')
+        broker = Broker()
+        code = 'E' * 43
+        fields = {'username': '0012349876', 'password': 'SYNTHETIC-NOT-STORED',
+                  'enrollment_code': code, 'confirmation': '同意绑定'}
+        desk = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker,
+                          enrollment_sha256=sha256(code.encode()).hexdigest(), now=lambda: NOW)
+        self.addCleanup(desk.close)
+        self.assertEqual(desk.status('owner'), {'connected': False, 'account_bound': False})
+        with self.assertRaisesRegex(LiveError, '开通码无效'):
+            desk.enroll('owner', {**fields, 'enrollment_code': 'X' * 43})
+        with self.assertRaisesRegex(LiveError, '未获准'):
+            desk.connect('owner', fields['username'], fields['password'])
+        broker.cash = 'not-broker-balance'
+        with self.assertRaisesRegex(LiveError, '只读核对失败'):
+            desk.enroll('owner', fields)
+        self.assertFalse(desk.bound)
+        self.assertTrue(broker.closed)
+        broker = Broker()
+        desk.next_login = 0  # Synthetic retry, after the first failed verification.
+        self.assertEqual(desk.enroll('owner', fields)['account_tail'], '9876')
+        self.assertTrue(desk.bound)
+        self.assertFalse(broker.sent)
+        draft = desk.draft_order('owner', {'symbol': 'sz159915', 'side': 'buy', 'price': '1.001', 'quantity': 100},
+                                 lambda: self.snapshot)
+        result = desk.submit('owner', {'order_token': draft['order_token'], 'confirmation': CONFIRMATION},
+                             lambda: self.snapshot)
+        self.assertEqual(result['state'], 'submitted')
+        self.assertEqual(len(broker.sent), 1)
+        desk.close()
+        broker = Broker()
+        restarted = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker)
+        self.addCleanup(restarted.close)
+        with self.assertRaisesRegex(LiveError, '不能更换'):
+            restarted.enroll('other', {**fields, 'username': '0099999876'})
+        with self.assertRaisesRegex(LiveError, '未获准'):
+            restarted.connect('other', '0099999876', fields['password'])
+        self.assertTrue(restarted.connect('owner', fields['username'], fields['password'])['connected'])
+        for secret in (fields['password'], fields['username'], code):
+            self.assertNotIn(secret.encode(), ledger.read_bytes())
 
     def test_disconnect_discards_client_and_draft(self):
         draft = self.draft()

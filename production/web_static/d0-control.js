@@ -13,6 +13,8 @@
   let brokerConnected = false;
   let brokerAvailable = false;
   let liveOrders = false;
+  let ordersConfigured = false;
+  let accountBound = false;
   let orderToken = null;
   let syncTimer = null;
   let syncRequest = 0;
@@ -123,7 +125,7 @@
       const closed = {closed: '当前为非连续交易时段。', unknown: '交易日历未覆盖当前日期。'};
       byId('signal').textContent = (marketReady ? 'D0 行情已就绪；提交时会重新核对。' : closed[status.market_state] || (earliest && +earliest > Date.now() ? '信号尚未到执行时间。' : '交易时段内正在等待新鲜行情或确认信号。')) + when;
       byId('inputs').disabled = !marketReady;
-      setAvailability(status.broker_state, status.live_orders_enabled === true);
+      setAvailability(status.broker_state, status.broker_orders_configured === true, status.account_bound === true);
       if (brokerAvailable) {
         try { setBroker(await call('/api/d0-control/broker')); }
         catch { setAvailability('unavailable'); }
@@ -140,15 +142,17 @@
     }
   }
 
-  function setAvailability(state, orders = false) {
+  function setAvailability(state, orders = false, bound = false) {
     brokerAvailable = state === 'available';
-    liveOrders = brokerAvailable && orders;
+    ordersConfigured = brokerAvailable && orders;
+    accountBound = brokerAvailable && bound;
+    liveOrders = ordersConfigured && accountBound;
     const messages = {
-      disabled: '网页实盘尚未配置授权资金账号和访问白名单。本机工具可配对和收信；这不会开启真实委托。',
+      disabled: '网页实盘尚未开启。本机工具可配对和收信；这不会开启真实委托。',
       private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? '网页仅只读核对' : state === 'disabled' ? '网页实盘未配置' : '网页实盘暂不可用';
+    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? (accountBound ? '网页仅只读核对' : '待首次授权') : state === 'disabled' ? '网页实盘未开启' : '网页实盘暂不可用';
     badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
     byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders;
@@ -177,6 +181,10 @@
   function setBroker(state) {
     brokerConnected = brokerAvailable && state.connected === true;
     byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
+    const enrolling = brokerAvailable && !accountBound && !brokerConnected;
+    byId('broker-enrollment').hidden = !enrolling;
+    byId('broker-enrollment').disabled = !enrolling;
+    byId('broker-connect-submit').textContent = enrolling ? '授权并绑定唯一资金账号' : '登录东方财富证券';
     byId('broker-session').hidden = !brokerConnected;
     byId('broker-order-fields').disabled = !liveOrders || !brokerConnected || !marketReady;
     byId('broker-settings').hidden = !brokerConnected || !state.limits;
@@ -224,8 +232,21 @@
     const password = byId('broker-password');
     const payload = {username: byId('broker-account').value.trim(), password: password.value};
     password.value = '';
+    const enroll = !accountBound;
+    if (enroll) {
+      const code = byId('broker-enrollment-code');
+      const confirmation = byId('broker-enrollment-confirm');
+      payload.enrollment_code = code.value.trim();
+      payload.confirmation = confirmation.value.trim();
+      code.value = '';
+      confirmation.value = '';
+    }
     byId('broker-status').textContent = '正在登录并只读核对…';
-    try { setBroker(await brokerCall('connect', payload)); }
+    try {
+      const state = await brokerCall(enroll ? 'enroll' : 'connect', payload);
+      if (enroll && state.connected === true && state.account_bound === true) setAvailability('available', ordersConfigured, true);
+      setBroker(state);
+    }
     catch (error) { byId('broker-status').textContent = error.message; }
     finally { submit.disabled = false; }
   });

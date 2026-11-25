@@ -49,6 +49,7 @@ async function run() {
       const writes = [];
       let live = false;
       let connected = false;
+      let accountBound = false;
       let syncState = 'not_linked';
       let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
       let brokerState = 'disabled';
@@ -77,9 +78,11 @@ async function run() {
           syncState = 'waiting';
           return route.fulfill({json: {code: 'A'.repeat(32), expires_in: 300}});
         }
-        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live, broker_state: brokerState, market_state: marketState}});
+        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live && accountBound, broker_orders_configured: live, account_bound: accountBound, broker_state: brokerState, market_state: marketState}});
+        if (url.pathname === `${prefix}/broker/enroll`) accountBound = connected = true;
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
-        if ([`${prefix}/broker`, `${prefix}/broker/connect`].includes(url.pathname)) return route.fulfill({json: {connected, account_tail: '1234', limits}});
+        if ([`${prefix}/broker`, `${prefix}/broker/connect`, `${prefix}/broker/enroll`].includes(url.pathname))
+          return route.fulfill({json: {connected, account_bound: accountBound, account_tail: '1234', limits}});
         if (url.pathname === `${prefix}/broker/limits`) {
           limits = {...limits, ...request.postDataJSON()};
           return route.fulfill({json: limits});
@@ -155,7 +158,7 @@ async function run() {
       assert.equal(await page.locator('#allocation').isVisible(), false);
 
       assert.equal(await page.locator('#broker').isVisible(), true);
-      assert.match(await page.locator('#broker-unavailable').innerText(), /网页实盘尚未配置/);
+      assert.match(await page.locator('#broker-unavailable').innerText(), /网页实盘尚未开启/);
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
       assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), '/api/d0-control/sync/download');
       const download = page.waitForEvent('download');
@@ -181,11 +184,16 @@ async function run() {
       await page.goto(origin + '/d0-control');
       await page.locator('#broker-connect').waitFor();
       assert.match(await page.locator('#signal').innerText(), /非连续交易时段/);
+      await page.locator('#broker-enrollment').waitFor();
+      await page.locator('#broker-enrollment-code').fill('E'.repeat(43));
+      await page.locator('#broker-enrollment-confirm').fill('同意绑定');
       await page.locator('#broker-account').fill('000001234');
       await page.locator('#broker-password').fill('synthetic-password');
-      await page.locator('#broker-connect button').click();
+      await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
       await page.locator('#broker-session').waitFor();
       assert.equal(await page.locator('#broker-password').inputValue(), '');
+      assert.equal(await page.locator('#broker-enrollment-code').inputValue(), '');
+      assert.equal(writes.filter(([path]) => path.endsWith('/enroll')).length, 1);
       assert.equal(await page.locator('#broker-order').isVisible(), false);
       await page.locator('#broker-settings summary').click();
       assert.equal(await page.locator('#broker-single').inputValue(), '800000');

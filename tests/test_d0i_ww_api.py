@@ -186,6 +186,16 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 status, _, result = await request(app, '/api/d0-control/broker/limits', data=limits, **options)
                 self.assertEqual((status, result), (200, limits))
                 desk.update_limits.assert_called_once_with(owner, limits)
+                desk.bound = False
+                fields = {**data, 'enrollment_code': 'E' * 43, 'confirmation': '同意绑定'}
+                action = '/api/d0-control/broker/enroll'
+                denied = {**options, 'peer': '198.51.100.11'}
+                self.assertEqual((await request(app, action, data=fields, **denied))[0], 403)
+                desk.enroll.assert_not_called()
+                desk.enroll.return_value = {'connected': True, 'account_bound': True, 'account_tail': '1234'}
+                status, _, result = await request(app, action, data=fields, **options)
+                self.assertEqual((status, result['account_bound']), (200, True))
+                desk.enroll.assert_called_once_with(owner, fields)
             desk.close.assert_called_once()
 
     async def test_connector_status_is_session_bound_and_native_code_single_use(self):

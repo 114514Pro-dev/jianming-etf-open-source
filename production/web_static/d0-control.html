@@ -54,11 +54,18 @@
           <p id="sync-status" class="small muted" role="status">尚未连接同步工具。</p>
         </section>
         <form id="broker-connect" method="post" autocomplete="off" hidden>
+          <fieldset id="broker-enrollment" hidden disabled>
+            <p class="small muted">首次授权：通过券商只读核对后，下面的资金账号将成为本站唯一实盘账户。网页不能换绑。</p>
+            <div class="control-fields">
+              <label>一次性开通码<input id="broker-enrollment-code" type="password" maxlength="64" required autocomplete="new-password"></label>
+              <label>输入「同意绑定」<input id="broker-enrollment-confirm" maxlength="8" required autocomplete="off"></label>
+            </div>
+          </fieldset>
           <div class="control-fields">
             <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
             <label>证券交易密码<input id="broker-password" type="password" maxlength="128" required autocomplete="new-password"></label>
           </div>
-          <button type="submit" class="button primary">登录东方财富证券</button>
+          <button id="broker-connect-submit" type="submit" class="button primary">登录东方财富证券</button>
         </form>
         <output id="broker-status" aria-live="polite" hidden>尚未连接。</output>
         <div id="broker-session" hidden>
