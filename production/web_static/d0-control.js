@@ -12,6 +12,7 @@
   let marketReady = false;
   let brokerConnected = false;
   let brokerAvailable = false;
+  let liveOrders = false;
   let orderToken = null;
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
@@ -54,8 +55,7 @@
       const closed = {closed: '当前为非连续交易时段。', unknown: '交易日历未覆盖当前日期。'};
       byId('signal').textContent = (marketReady ? 'D0 行情已就绪；提交时会重新核对。' : closed[status.market_state] || (earliest && +earliest > Date.now() ? '信号尚未到执行时间。' : '交易时段内正在等待新鲜行情或确认信号。')) + when;
       byId('inputs').disabled = !marketReady;
-      byId('broker-order-fields').disabled = !marketReady || !brokerConnected;
-      setAvailability(status.live_orders_enabled ? 'available' : status.broker_state);
+      setAvailability(status.broker_state, status.live_orders_enabled === true);
       if (brokerAvailable) {
         try { setBroker(await call('/api/d0-control/broker')); }
         catch { setAvailability('unavailable'); }
@@ -72,16 +72,19 @@
     }
   }
 
-  function setAvailability(state) {
+  function setAvailability(state, orders = false) {
     brokerAvailable = state === 'available';
+    liveOrders = brokerAvailable && orders;
     const messages = {
       disabled: '本站尚未启用券商连接。现在只能拟单，不能输入证券密码或发出委托。',
-      private_origin_required: '请从已配置的私有 HTTPS 地址登录券商；当前地址不接受证券凭据。',
+      private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = brokerAvailable ? '手动实盘' : state === 'disabled' ? '未开通' : '暂不可用';
-    badge.className = `pill ${brokerAvailable ? 'danger' : 'neutral'}`;
-    byId('trading-mode').textContent = brokerAvailable ? '手动实盘已启用 · 不自动下单' : '仅拟单 · 不发送真实委托';
+    badge.textContent = liveOrders ? '手动实盘' : brokerAvailable ? '仅只读核对' : state === 'disabled' ? '未开通' : '暂不可用';
+    badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
+    byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
+    byId('broker-order').hidden = !liveOrders;
+    if (!liveOrders) clearDraft();
     const message = byId('broker-unavailable');
     message.hidden = brokerAvailable;
     message.textContent = messages[state] || '无法确认券商连接状态。请刷新 D0 状态后重试。';
@@ -107,11 +110,43 @@
     brokerConnected = brokerAvailable && state.connected === true;
     byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
     byId('broker-session').hidden = !brokerConnected;
-    byId('broker-order-fields').disabled = !brokerConnected || !marketReady;
+    byId('broker-order-fields').disabled = !liveOrders || !brokerConnected || !marketReady;
+    byId('broker-settings').hidden = !brokerConnected || !state.limits;
+    if (state.limits) showLimits(state.limits);
+    const holdings = byId('broker-holdings');
+    if (brokerConnected && state.positions) {
+      holdings.textContent = '登录时持有／可卖：' + symbols.map(s => `${names[s]} ${state.positions[s].held}／${state.positions[s].sellable} 份`).join(' · ');
+      holdings.hidden = false;
+    }
     const cash = state.available_cash == null ? '' : ` · 登录时可用 ${yuan.format(Number(state.available_cash))}`;
     byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
-    if (!brokerConnected) clearDraft();
+    if (!brokerConnected) {
+      clearDraft();
+      holdings.textContent = '';
+      holdings.hidden = true;
+      byId('broker-settings').open = false;
+      byId('broker-limit-result').textContent = '';
+    }
   }
+
+  function showLimits(limits) {
+    byId('broker-single').value = limits.single_cny;
+    byId('broker-daily').value = limits.daily_cny;
+  }
+
+  byId('broker-limits').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!brokerConnected) return;
+    const submit = event.submitter;
+    const output = byId('broker-limit-result');
+    submit.disabled = true;
+    clearDraft();
+    try {
+      showLimits(await brokerCall('limits', {single_cny: byId('broker-single').value, daily_cny: byId('broker-daily').value}));
+      output.textContent = '限额已保存，今日已提交金额不变。';
+    } catch (error) { output.textContent = error.message; }
+    finally { submit.disabled = false; }
+  });
 
   byId('broker-connect').addEventListener('submit', async (event) => {
     event.preventDefault();

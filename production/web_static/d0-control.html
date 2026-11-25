@@ -48,7 +48,20 @@
         <output id="broker-status" aria-live="polite" hidden>尚未连接。</output>
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
-          <form id="broker-order" method="post" autocomplete="off">
+          <p id="broker-holdings" class="small muted" hidden></p>
+          <details id="broker-settings" hidden>
+            <summary>设置 · 实盘委托限额</summary>
+            <form id="broker-limits" method="post" autocomplete="off">
+              <p class="small muted">仅约束此网页的买卖委托，两项上限均为 500 万元。调低限额不会清除今日已提交金额。</p>
+              <div class="control-fields">
+                <label>单笔上限（元）<input id="broker-single" type="number" min="0.01" max="5000000" step="0.01" required></label>
+                <label>单日累计上限（元）<input id="broker-daily" type="number" min="0.01" max="5000000" step="0.01" required></label>
+              </div>
+              <button type="submit" class="button secondary">保存委托限额</button>
+              <output id="broker-limit-result" aria-live="polite"></output>
+            </form>
+          </details>
+          <form id="broker-order" method="post" autocomplete="off" hidden>
             <fieldset id="broker-order-fields" disabled>
               <div class="control-fields">
                 <label>ETF<select id="broker-symbol" required><option value="sz159915">创业板 ETF 159915</option><option value="sh512800">银行 ETF 512800</option><option value="sh518880">黄金 ETF 518880</option><option value="sh511010">国债 ETF 511010</option></select></label>

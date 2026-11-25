@@ -49,6 +49,7 @@ async function run() {
       const writes = [];
       let live = false;
       let connected = false;
+      let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
       let brokerState = 'disabled';
       let marketState = 'open';
       await page.route('**/*', async route => {
@@ -70,7 +71,11 @@ async function run() {
         const prefix = '/api/d0-control';
         if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live, broker_state: brokerState, market_state: marketState}});
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
-        if ([`${prefix}/broker`, `${prefix}/broker/connect`].includes(url.pathname)) return route.fulfill({json: {connected, account_tail: '1234'}});
+        if ([`${prefix}/broker`, `${prefix}/broker/connect`].includes(url.pathname)) return route.fulfill({json: {connected, account_tail: '1234', limits}});
+        if (url.pathname === `${prefix}/broker/limits`) {
+          limits = {...limits, ...request.postDataJSON()};
+          return route.fulfill({json: limits});
+        }
         if (url.pathname === `${prefix}/broker/draft`) return route.fulfill({json: {symbol: 'sz159915', side: 'buy', quantity: 100, price: '1.001', notional: '100.10', order_token: 'fixture', expires_in: 30}});
         if (url.pathname === `${prefix}/broker/submit`) return route.fulfill({json: {state: 'submitted', broker_receipt: '999'}});
         return route.fulfill({json: json[url.pathname] || {}});
@@ -146,11 +151,10 @@ async function run() {
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
       brokerState = 'private_origin_required';
       await page.locator('#refresh-signal').click();
-      await page.getByText(/请从已配置的私有 HTTPS/).waitFor();
+      await page.getByText(/当前地址或网络未获券商访问授权/).waitFor();
       assert.equal(await page.locator('#broker-password').isVisible(), false);
       await page.emulateMedia({reducedMotion: 'reduce'});
       assert.equal(await page.locator('#workspace').evaluate(el => getComputedStyle(el).animationName), 'none');
-      live = true;
       brokerState = 'available';
       marketState = 'closed';
       await page.goto(origin + '/d0-control');
@@ -161,6 +165,17 @@ async function run() {
       await page.locator('#broker-connect button').click();
       await page.locator('#broker-session').waitFor();
       assert.equal(await page.locator('#broker-password').inputValue(), '');
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      await page.locator('#broker-settings summary').click();
+      assert.equal(await page.locator('#broker-single').inputValue(), '800000');
+      assert.equal(await page.locator('#broker-daily').inputValue(), '5000000');
+      await page.locator('#broker-single').fill('10000');
+      await page.getByRole('button', {name: '保存委托限额'}).click();
+      await page.getByText('限额已保存，今日已提交金额不变。').waitFor();
+      assert.equal(writes.find(([path]) => path.endsWith('/limits'))[1].single_cny, '10000');
+      live = true;
+      await page.locator('#refresh-signal').click();
+      await page.locator('#broker-order').waitFor();
       assert.equal(await page.locator('#broker-order button').isDisabled(), true);
       marketState = 'open';
       await page.locator('#refresh-signal').click();

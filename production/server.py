@@ -17,6 +17,7 @@ import math
 import multiprocessing as mp
 import os
 from pathlib import Path
+from ipaddress import ip_address
 from urllib.parse import urlsplit
 import queue
 import re
@@ -1417,12 +1418,29 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     d0_web = os.environ.get("ETF_D0_WEB_PREVIEW") == "1"
     emtl_web = os.environ.get("ETF_EMTL_WEB_LIVE") == "1"
     broker_origin = os.environ.get("ETF_EMTL_ORIGIN", "")
+    broker_orders = os.environ.get("ETF_EMTL_ORDERS_ENABLED") == "1"
+    allowed_broker_ips = set()
     if emtl_web:
         parsed = urlsplit(broker_origin)
         if (not d0_web or not secure or parsed.scheme != "https" or parsed.hostname not in hosts
                 or parsed.username is not None or parsed.password is not None or parsed.path or parsed.query or parsed.fragment
                 or broker_origin != f"https://{parsed.netloc}"):
             raise RuntimeError("EMTL 实盘要求私有 HTTPS、Secure Cookie、明确受信主机和 ETF_EMTL_ORIGIN")
+        try:
+            allowed_broker_ips = {ip_address(value.strip()) for value in os.environ.get("ETF_EMTL_ALLOWED_IPS", "").split(",")}
+            proxy_ips = {ip_address(value.strip()) for value in os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1").split(",")}
+            if any(ip.is_unspecified or ip.is_multicast for ip in allowed_broker_ips | proxy_ips) or allowed_broker_ips & proxy_ips:
+                raise ValueError
+        except ValueError:
+            raise RuntimeError("EMTL 要求明确的访问 IP 白名单及可信代理 IP；不允许通配符") from None
+
+    def broker_available(request: Request):
+        if not emtl_web or str(request.base_url).rstrip("/") != broker_origin or request.client is None:
+            return False
+        try:
+            return ip_address(request.client.host) in allowed_broker_ips
+        except ValueError:
+            return False
 
     @asynccontextmanager
     async def lifespan(app):
@@ -1918,9 +1936,9 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             signal = source.get("signal") or {}
             now = datetime.now(CN)
             calendar = TradingCalendar()
-            private_origin = str(request.base_url).rstrip("/") == broker_origin
-            broker_state = "disabled" if not emtl_web else "available" if private_origin else "private_origin_required"
-            return {"mode": "preview_only", "live_orders_enabled": broker_state == "available", "broker_state": broker_state,
+            available = broker_available(request)
+            broker_state = "disabled" if not emtl_web else "available" if available else "private_origin_required"
+            return {"mode": "preview_only", "live_orders_enabled": available and broker_orders, "broker_state": broker_state,
                     "strategy": "D0", "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
                     "market_state": "unknown" if calendar.is_session(now.date()) is None else "open" if calendar.segment(now) else "closed",
                     "execution_day": signal.get("execution_day"), "eligible_at": signal.get("eligible_at")}
@@ -1947,7 +1965,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
     if emtl_web:
         def broker_access(request: Request):
-            if str(request.base_url).rstrip("/") != broker_origin or (request.method == "POST" and request.headers.get("origin") != broker_origin):
+            if not broker_available(request) or (request.method == "POST" and request.headers.get("origin") != broker_origin):
                 raise HTTPException(403, "请从已配置的私有 HTTPS 控制台访问券商交易。")
             return app.state.broker_desk, hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
 
@@ -1962,9 +1980,12 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
             desk, owner = broker_access(request)
             keys = {"connect": {"username", "password"}, "disconnect": set(),
-                    "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"}}
+                    "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"},
+                    "limits": {"single_cny", "daily_cny"}}
             if action not in keys:
                 raise HTTPException(404, "不支持的券商操作")
+            if action in {"draft", "submit"} and not broker_orders:
+                raise HTTPException(403, "券商当前只允许登录和只读核对，真实委托尚未开放。")
             try:
                 payload = await request.json()
             except (ValueError, UnicodeError):
@@ -1976,6 +1997,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                     return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"])
                 if action == "disconnect":
                     return await asyncio.to_thread(desk.disconnect, owner)
+                if action == "limits":
+                    return await asyncio.to_thread(desk.update_limits, owner, payload)
                 operation = desk.draft_order if action == "draft" else desk.submit
                 return await asyncio.to_thread(operation, owner, payload, d0_order_preview_input)
             except LiveError as exc:

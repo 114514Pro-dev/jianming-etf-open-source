@@ -146,7 +146,12 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
         self.d0.order_preview_input = lambda: snapshot
         desk = Mock()
         desk.connect.return_value = {'connected': True, 'account_tail': '1234'}
-        with patch.dict(os.environ, {**env, 'ETF_EMTL_ORIGIN': 'https://testserver'}):
+        peer = '198.51.100.10'
+        config = {**env, 'ETF_EMTL_ORIGIN': 'https://testserver', 'ETF_EMTL_ALLOWED_IPS': peer,
+                  'ETF_EMTL_ORDERS_ENABLED': '0', 'FORWARDED_ALLOW_IPS': '127.0.0.1'}
+        with patch.dict(os.environ, {**config, 'FORWARDED_ALLOW_IPS': '*'}), self.assertRaisesRegex(RuntimeError, '通配符'):
+            create_app(self.home)
+        with patch.dict(os.environ, config):
             app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
         path = '/api/d0-control/broker/connect'
         data = {'username': '000001234', 'password': 'test-password'}
@@ -157,16 +162,28 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 _, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password})
                 cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
                 status, _, availability = await request(app, '/api/d0-control/status', cookie=cookie)
-                self.assertEqual((status, availability['broker_state'], availability['live_orders_enabled']), (200, 'available', True))
-                status, _, _ = await request(app, path, method='POST', data=data, cookie=cookie, csrf=csrf)
+                self.assertEqual((status, availability['broker_state'], availability['live_orders_enabled']),
+                                 (200, 'private_origin_required', False))
+                _, _, availability = await request(app, '/api/d0-control/status', cookie=cookie, peer=peer)
+                self.assertEqual((availability['broker_state'], availability['live_orders_enabled']), ('available', False))
+                status, _, _ = await request(app, path, method='POST', data=data, cookie=cookie, csrf=csrf, peer=peer)
                 self.assertEqual(status, 403)
                 desk.connect.assert_not_called()
                 status, _, body = await request(app, path, method='POST', data=data,
-                                                cookie=cookie, csrf=csrf, origin='https://testserver')
+                                                cookie=cookie, csrf=csrf, origin='https://testserver', peer=peer)
                 self.assertEqual((status, body['account_tail']), (200, '1234'))
                 owner, name, password = desk.connect.call_args.args
                 self.assertEqual(owner, hashlib.sha256(cookie.split('=', 1)[1].encode()).hexdigest())
                 self.assertEqual((name, password), (data['username'], data['password']))
+                options = dict(method='POST', cookie=cookie, csrf=csrf, origin='https://testserver', peer=peer)
+                status, _, _ = await request(app, '/api/d0-control/broker/submit', data={}, **options)
+                self.assertEqual(status, 403)
+                desk.submit.assert_not_called()
+                limits = {'single_cny': '800000', 'daily_cny': '5000000'}
+                desk.update_limits.return_value = limits
+                status, _, result = await request(app, '/api/d0-control/broker/limits', data=limits, **options)
+                self.assertEqual((status, result), (200, limits))
+                desk.update_limits.assert_called_once_with(owner, limits)
             desk.close.assert_called_once()
 
     async def test_default_and_ww_empty_snapshots_are_distinct_and_stopped(self):

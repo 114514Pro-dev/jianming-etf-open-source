@@ -120,6 +120,23 @@ class ManualEmtlTests(unittest.TestCase):
             self.submit(self.draft(price='1.000'))
         self.assertEqual(len(self.broker.sent), 1)
 
+    def test_limits_are_owner_only_bounded_persisted_and_invalidate_draft(self):
+        draft = self.draft()
+        fields = {'single_cny': '800000', 'daily_cny': '5000000'}
+        with self.assertRaises(LiveError):
+            self.desk.update_limits('other', fields)
+        for invalid in ('0', '5000000.01', 'NaN', '1e3', '800000.001'):
+            with self.assertRaises(LiveError):
+                self.desk.update_limits('browser-one', {**fields, 'single_cny': invalid})
+        self.assertEqual(self.desk.update_limits('browser-one', fields)['single_cny'], '800000')
+        with self.assertRaises(LiveError):
+            self.submit(draft)
+        self.desk.close()
+        self.create()
+        self.assertEqual(self.desk.status('browser-one')['limits']['daily_cny'], '5000000')
+        with self.assertRaisesRegex(RuntimeError, '另一资金账号'):
+            BrokerDesk(self.path, '000006789', Decimal('1000'), Decimal('8000'), Broker)
+
     def test_disconnect_discards_client_and_draft(self):
         draft = self.draft()
         self.assertFalse(self.desk.disconnect('other')['connected'])
