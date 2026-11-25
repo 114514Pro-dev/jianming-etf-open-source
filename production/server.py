@@ -2080,7 +2080,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
             desk, owner = broker_access(request)
             keys = {"connect": {"username", "password"}, "disconnect": set(),
-                    "enroll": {"username", "password", "enrollment_code", "confirmation"},
+                    "enroll": {"username", "password", "enrollment_code", "confirmation"}, "unbind": {"confirmation"},
                     "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"},
                     "limits": {"single_cny", "daily_cny"}}
             if action not in keys:
@@ -2098,6 +2098,9 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                     return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"])
                 if action == "enroll":
                     return await asyncio.to_thread(desk.enroll, owner, payload)
+                if action == "unbind":
+                    state = await asyncio.to_thread(desk.unbind, owner, payload)
+                    return JSONResponse(state, headers={"Cache-Control": "no-store"})
                 if action == "disconnect":
                     return await asyncio.to_thread(desk.disconnect, owner)
                 if action == "limits":

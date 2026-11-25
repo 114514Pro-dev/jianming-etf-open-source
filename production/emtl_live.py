@@ -113,6 +113,8 @@ class BrokerDesk:
                  now=lambda: datetime.now(TZ)):
         self.path, self.factory = Path(path), client_factory
         self.enrollment_sha256 = enrollment_sha256
+        self.managed_by_env = bool(account)
+        self.rebind_pending = False
         self.account_tag = None
         self.session_tail = None
         self.single_limit, self.daily_limit, self.now = single_limit, daily_limit, now
@@ -125,12 +127,25 @@ class BrokerDesk:
                        "state TEXT NOT NULL, receipt TEXT)")
             db.execute("CREATE TABLE IF NOT EXISTS broker_policy (id INTEGER PRIMARY KEY CHECK(id = 1), "
                        "account_tag TEXT NOT NULL, single_cap TEXT, daily_cap TEXT)")
+            db.execute("CREATE TABLE IF NOT EXISTS broker_rebind (id INTEGER PRIMARY KEY CHECK(id=1), "
+                       "code_tag TEXT NOT NULL, single_cap TEXT NOT NULL, daily_cap TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS broker_binding_events (id INTEGER PRIMARY KEY, "
+                       "account_tag TEXT NOT NULL, action TEXT NOT NULL, event_at TEXT NOT NULL)")
             row = db.execute("SELECT * FROM broker_policy WHERE id=1").fetchone()
+            pending = db.execute("SELECT * FROM broker_rebind WHERE id=1").fetchone()
             configured_tag = sha256(account.encode()).hexdigest() if account else None
+            if row and pending:
+                raise RuntimeError("账户绑定状态冲突；请停止实盘并核对。")
             if row is None:
-                if db.execute("SELECT 1 FROM intent LIMIT 1").fetchone():
+                if pending:
+                    if configured_tag or db.execute("SELECT 1 FROM intent WHERE state != 'terminal' LIMIT 1").fetchone():
+                        raise RuntimeError("待重新绑定的控制台仍有旧账号配置或未核对委托。")
+                    self.enrollment_sha256 = pending["code_tag"]
+                    self.single_limit, self.daily_limit = _limits(pending["single_cap"], pending["daily_cap"])
+                    self.rebind_pending = True
+                elif db.execute("SELECT 1 FROM intent LIMIT 1").fetchone():
                     raise RuntimeError("旧委托日志缺少账户绑定；请先人工核对。")
-                if configured_tag:
+                elif configured_tag:
                     db.execute("INSERT INTO broker_policy VALUES (1, ?, NULL, NULL)", (configured_tag,))
                     self.account_tag = configured_tag
                 elif not self.enrollment_sha256:
@@ -238,7 +253,7 @@ class BrokerDesk:
         with self.lock:
             if enrollment_code is not None:
                 if self.bound:
-                    raise LiveError("已经绑定唯一实盘账号，网页不能更换。")
+                    raise LiveError("已经绑定唯一实盘账号，请先解绑当前账号。")
                 if not self.enrollment_sha256 or not secrets.compare_digest(
                         sha256(enrollment_code.encode()).hexdigest(), self.enrollment_sha256):
                     raise LiveError("开通码无效。")
@@ -267,19 +282,59 @@ class BrokerDesk:
                     with closing(self._db()) as db, db:
                         db.execute("BEGIN IMMEDIATE")
                         if db.execute("SELECT 1 FROM broker_policy WHERE id=1").fetchone():
-                            raise LiveError("已经绑定唯一实盘账号，网页不能更换。")
-                        db.execute("INSERT INTO broker_policy VALUES (1, ?, NULL, NULL)", (tag,))
+                            raise LiveError("已经绑定唯一实盘账号，请先解绑当前账号。")
+                        pending = db.execute("SELECT code_tag FROM broker_rebind WHERE id=1").fetchone()
+                        if self.rebind_pending != bool(pending) or (pending and not secrets.compare_digest(
+                                pending["code_tag"], sha256(enrollment_code.encode()).hexdigest())):
+                            raise LiveError("重新绑定开通码已变更。")
+                        db.execute("INSERT INTO broker_policy VALUES (1, ?, ?, ?)",
+                                   (tag, str(self.single_limit), str(self.daily_limit)))
+                        db.execute("DELETE FROM broker_rebind WHERE id=1")
+                        self._binding_event(db, tag, "bound")
                 except BaseException:
                     self._close_client(client)
                     raise
                 self.account_tag = tag
                 self.enrollment_sha256 = None
+                self.rebind_pending = False
             self.owner, self.client, self.session_tail = owner, client, username[-4:]
             self.expires = time.monotonic() + self.connection_seconds
             self.timer = threading.Timer(self.connection_seconds, self._expire, args=(client,))
             self.timer.daemon = True
             self.timer.start()
-            return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(), **account}
+            return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
+                    "can_unbind": not self.managed_by_env, **account}
+
+    def _binding_event(self, db, account_tag, action):
+        db.execute("INSERT INTO broker_binding_events (account_tag, action, event_at) VALUES (?, ?, ?)",
+                   (account_tag, action, dt(self.now()).isoformat()))
+
+    def unbind(self, owner, fields):
+        if fields.get("confirmation") != "确认解绑":
+            raise LiveError("请输入「确认解绑」。解绑不会撤销券商委托。")
+        with self.lock:
+            if self.managed_by_env:
+                raise LiveError("此账号由服务器固定配置，请先由管理员解除固定配置。")
+            client = self._current(owner)
+            if not client or not self.bound:
+                raise LiveError("请先登录当前绑定的券商账号。")
+            orders = _rows(self._query(client.query_orders))
+            if self._current(owner) is not client:
+                raise LiveError("券商连接已过期，未解绑。")
+            code = secrets.token_urlsafe(32)
+            digest = sha256(code.encode()).hexdigest()
+            with closing(self._db()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                self._reconcile(db, dt(self.now()).date().isoformat(), orders)
+                if db.execute("DELETE FROM broker_policy WHERE id=1 AND account_tag=?", (self.account_tag,)).rowcount != 1:
+                    raise LiveError("账户绑定已变更，未解绑。")
+                self._binding_event(db, self.account_tag, "unbound")
+                db.execute("INSERT INTO broker_rebind VALUES (1, ?, ?, ?)",
+                           (digest, str(self.single_limit), str(self.daily_limit)))
+            self.account_tag = None
+            self.enrollment_sha256, self.rebind_pending = digest, True
+            self._drop()
+            return {"connected": False, "account_bound": False, "rebind_code": code}
 
     def status(self, owner):
         with self.lock:
@@ -287,6 +342,7 @@ class BrokerDesk:
             if not client:
                 return {"connected": False, "account_bound": self.bound}
             return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
+                    "can_unbind": not self.managed_by_env,
                     "remaining_seconds": max(0, int(self.expires - time.monotonic()))}
 
     def _public_limits(self):
@@ -332,21 +388,27 @@ class BrokerDesk:
             self.draft = (token, time.monotonic() + self.draft_seconds, day, order)
             return {"order_token": token, "expires_in": self.draft_seconds, **order.public()}
 
+    @staticmethod
+    def _reconcile(db, day, current_orders):
+        if len(current_orders) >= 100:
+            raise LiveError("券商当日委托记录可能被截断，请人工核对。")
+        for item in db.execute("SELECT * FROM intent WHERE state != 'terminal'").fetchall():
+            if item["state"] != "submitted" or item["day"] != day:
+                raise LiveError("存在未核对的历史委托；请在券商端核对并由管理员处理后再操作。")
+            code, _ = SECURITIES[item["symbol"]]
+            matches = [r for r in current_orders if r.get("Wtbh") == item["receipt"]
+                       and r.get("Wtrq") == day.replace("-", "") and r.get("Zqdm") == code]
+            if (len(matches) != 1 or str(matches[0].get("Wtzt")) not in TERMINAL
+                    or str(matches[0].get("Wtsl")) != str(item["qty"])):
+                raise LiveError("上笔真实委托尚未看到明确终态。")
+            db.execute("UPDATE intent SET state='terminal' WHERE id=?", (item["id"],))
+        if any(str(r.get("Wtzt")) not in TERMINAL for r in current_orders):
+            raise LiveError("券商有未结或状态未知的委托，请先核对。")
+
     def _claim(self, token, day, order, current_orders):
         with closing(self._db()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            for item in db.execute("SELECT * FROM intent WHERE state != 'terminal'").fetchall():
-                if item["state"] != "submitted" or item["day"] != day:
-                    raise LiveError("存在未核对的历史委托；请在券商端核对并由管理员处理后再操作。")
-                code, _ = SECURITIES[item["symbol"]]
-                matches = [r for r in current_orders if r.get("Wtbh") == item["receipt"]
-                           and r.get("Wtrq") == day.replace("-", "") and r.get("Zqdm") == code]
-                if (len(matches) != 1 or str(matches[0].get("Wtzt")) not in TERMINAL
-                        or str(matches[0].get("Wtsl")) != str(item["qty"])):
-                    raise LiveError("上笔真实委托尚未看到明确终态。")
-                db.execute("UPDATE intent SET state='terminal' WHERE id=?", (item["id"],))
-            if any(str(r.get("Wtzt")) not in TERMINAL for r in current_orders):
-                raise LiveError("券商有未结或状态未知的委托，请先核对。")
+            self._reconcile(db, day, current_orders)
             used = sum(Decimal(r[0]) for r in db.execute("SELECT notional FROM intent WHERE day=?", (day,)))
             if used + order.notional > self.daily_limit:
                 raise LiveError("超过控制台的本日委托金额上限。")

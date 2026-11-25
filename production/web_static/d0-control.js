@@ -162,6 +162,7 @@
     message.textContent = messages[state] || '无法确认券商连接状态。请刷新 D0 状态后重试。';
     byId('broker-status').hidden = !brokerAvailable;
     if (!brokerAvailable) {
+      clearRebindCode();
       byId('broker-password').value = '';
       setBroker({connected: false});
     }
@@ -178,6 +179,13 @@
     byId('broker-phrase').value = '';
   }
 
+  function clearRebindCode() {
+    byId('broker-rebind-box').hidden = true;
+    byId('broker-rebind-code').value = '';
+    byId('broker-rebind-code').type = 'password';
+    byId('broker-copy-rebind').textContent = '复制';
+  }
+
   function setBroker(state) {
     brokerConnected = brokerAvailable && state.connected === true;
     byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
@@ -186,6 +194,14 @@
     byId('broker-enrollment').disabled = !enrolling;
     byId('broker-connect-submit').textContent = enrolling ? '授权并绑定唯一资金账号' : '登录东方财富证券';
     byId('broker-session').hidden = !brokerConnected;
+    const unbind = byId('broker-unbind-panel');
+    unbind.hidden = !brokerConnected || state.can_unbind !== true;
+    if (unbind.hidden) {
+      unbind.open = false;
+      byId('broker-unbind-confirm').value = '';
+      byId('broker-unbind-result').textContent = '';
+    }
+    if (accountBound) clearRebindCode();
     byId('broker-order-fields').disabled = !liveOrders || !brokerConnected || !marketReady;
     byId('broker-settings').hidden = !brokerConnected || !state.limits;
     if (state.limits) showLimits(state.limits);
@@ -198,6 +214,7 @@
     byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
     if (!brokerConnected) {
       clearDraft();
+      byId('broker-result').textContent = '';
       holdings.textContent = '';
       holdings.hidden = true;
       byId('broker-settings').open = false;
@@ -256,6 +273,46 @@
     try { setBroker(await brokerCall('disconnect', {})); }
     catch (error) { byId('broker-status').textContent = error.message; }
     finally { byId('broker-disconnect').disabled = false; }
+  });
+
+  // The one-time code is kept only on this page, never in browser storage.
+  window.addEventListener('pagehide', clearRebindCode);
+  byId('broker-copy-rebind').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const code = byId('broker-rebind-code');
+    try {
+      await navigator.clipboard.writeText(code.value);
+      button.textContent = '已复制';
+    } catch {
+      code.type = 'text';
+      code.select();
+      button.textContent = '请手动复制';
+    }
+  });
+
+  byId('broker-unbind').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!brokerConnected) return;
+    const submit = event.submitter;
+    const confirmation = byId('broker-unbind-confirm');
+    const output = byId('broker-unbind-result');
+    submit.disabled = true;
+    byId('broker-disconnect').disabled = true;
+    output.textContent = '正在核对委托记录…';
+    try {
+      const state = await brokerCall('unbind', {confirmation: confirmation.value.trim()});
+      setAvailability('available', ordersConfigured, false);
+      setBroker(state);
+      byId('broker-account').value = '';
+      byId('broker-rebind-code').value = state.rebind_code;
+      byId('broker-rebind-box').hidden = false;
+      byId('broker-copy-rebind').focus();
+    } catch (error) { output.textContent = error.message; }
+    finally {
+      confirmation.value = '';
+      submit.disabled = false;
+      byId('broker-disconnect').disabled = false;
+    }
   });
 
   byId('broker-order').addEventListener('input', clearDraft);

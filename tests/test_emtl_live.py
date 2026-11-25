@@ -138,7 +138,7 @@ class ManualEmtlTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, '另一资金账号'):
             BrokerDesk(self.path, '000006789', Decimal('1000'), Decimal('8000'), Broker)
 
-    def test_first_enrollment_checks_broker_then_locks_account_permanently(self):
+    def test_first_enrollment_checks_broker_then_persists_single_account(self):
         ledger = self.path.with_name('enrollment.sqlite3')
         broker = Broker()
         code = 'E' * 43
@@ -172,13 +172,83 @@ class ManualEmtlTests(unittest.TestCase):
         broker = Broker()
         restarted = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker)
         self.addCleanup(restarted.close)
-        with self.assertRaisesRegex(LiveError, '不能更换'):
+        with self.assertRaisesRegex(LiveError, '请先解绑'):
             restarted.enroll('other', {**fields, 'username': '0099999876'})
         with self.assertRaisesRegex(LiveError, '未获准'):
             restarted.connect('other', '0099999876', fields['password'])
         self.assertTrue(restarted.connect('owner', fields['username'], fields['password'])['connected'])
         for secret in (fields['password'], fields['username'], code):
             self.assertNotIn(secret.encode(), ledger.read_bytes())
+
+    def test_unbind_reconciles_then_rebinds_after_restart_without_resetting_limits(self):
+        ledger = self.path.with_name('rebind.sqlite3')
+        broker = Broker()
+        old_code = 'E' * 43
+        fields = {'username': '000001234', 'password': 'SYNTHETIC', 'enrollment_code': old_code,
+                  'confirmation': '同意绑定'}
+
+        def start():
+            desk = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker,
+                              enrollment_sha256=sha256(old_code.encode()).hexdigest(), now=lambda: NOW)
+            self.addCleanup(desk.close)
+            return desk
+
+        owner = 'browser-one'
+        desk = start()
+        desk.enroll(owner, fields)
+        desk.update_limits(owner, {'single_cny': '100', 'daily_cny': '150'})
+        confirm = {'confirmation': '确认解绑'}
+        with self.assertRaisesRegex(LiveError, '请先登录'):
+            desk.unbind('another-browser', confirm)
+        with self.assertRaisesRegex(LiveError, '请输入'):
+            desk.unbind(owner, {'confirmation': 'OK'})
+        order = {'symbol': 'sz159915', 'side': 'buy', 'price': '1.000', 'quantity': 100}
+        draft = desk.draft_order(owner, order, lambda: self.snapshot)
+        desk.submit(owner, {'order_token': draft['order_token'], 'confirmation': CONFIRMATION}, lambda: self.snapshot)
+        broker.orders = [{'Wtrq': '20261124', 'Wtbh': '123', 'Zqdm': '159915', 'Wtzt': '已报', 'Wtsl': '100'}]
+        with self.assertRaisesRegex(LiveError, '终态'):
+            desk.unbind(owner, confirm)
+        self.assertTrue(desk.bound)
+        broker.orders[0]['Wtzt'] = '已成'
+        broker.orders.extend({'Wtzt': '已成'} for _ in range(99))
+        with self.assertRaisesRegex(LiveError, '截断'):
+            desk.unbind(owner, confirm)
+        del broker.orders[1:]
+        broker.orders.append({'Wtzt': '已报'})
+        with self.assertRaisesRegex(LiveError, '券商有未结'):
+            desk.unbind(owner, confirm)
+        broker.orders.pop()
+        draft = desk.draft_order(owner, order, lambda: self.snapshot)
+        unbound = desk.unbind(owner, confirm)
+        self.assertFalse(unbound['account_bound'])
+        self.assertTrue(broker.closed)
+        with self.assertRaisesRegex(LiveError, '失效'):
+            desk.submit(owner, {'order_token': draft['order_token'], 'confirmation': CONFIRMATION}, lambda: self.snapshot)
+        desk.close()
+        new_code = unbound['rebind_code']
+        self.assertNotIn(new_code.encode(), ledger.read_bytes())
+        broker = Broker()
+        restarted = start()
+        self.assertFalse(restarted.bound)
+        with self.assertRaisesRegex(LiveError, '未获准'):
+            restarted.connect(owner, fields['username'], fields['password'])
+        with self.assertRaisesRegex(LiveError, '开通码无效'):
+            restarted.enroll(owner, fields)
+        rebound = restarted.enroll(owner, {**fields, 'username': '000008765', 'enrollment_code': new_code})
+        self.assertEqual(rebound['account_tail'], '8765')
+        self.assertEqual(rebound['limits']['daily_cny'], '150')
+        with self.assertRaisesRegex(LiveError, '请先解绑'):
+            restarted.enroll(owner, {**fields, 'enrollment_code': new_code})
+        draft = restarted.draft_order(owner, order, lambda: self.snapshot)
+        with self.assertRaisesRegex(LiveError, '本日'):
+            restarted.submit(owner, {'order_token': draft['order_token'], 'confirmation': CONFIRMATION}, lambda: self.snapshot)
+        self.assertFalse(broker.sent)
+
+    def test_unbind_refuses_environment_pinned_account(self):
+        self.assertFalse(self.desk.status('browser-one')['can_unbind'])
+        with self.assertRaisesRegex(LiveError, '固定配置'):
+            self.desk.unbind('browser-one', {'confirmation': '确认解绑'})
+        self.assertTrue(self.desk.bound)
 
     def test_disconnect_discards_client_and_draft(self):
         draft = self.draft()

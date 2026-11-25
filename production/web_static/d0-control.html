@@ -53,9 +53,17 @@
           </div>
           <p id="sync-status" class="small muted" role="status">尚未连接同步工具。</p>
         </section>
+        <div id="broker-rebind-box" class="broker-unavailable" hidden>
+          <p class="small">已解绑。请保存这枚仅显示一次的开通码，用来绑定下一账户。本站不会取消券商已有委托。</p>
+          <div class="connector-code">
+            <label for="broker-rebind-code">新的单次开通码</label>
+            <input id="broker-rebind-code" type="password" readonly autocomplete="off">
+            <button id="broker-copy-rebind" class="button secondary small-button" type="button">复制</button>
+          </div>
+        </div>
         <form id="broker-connect" method="post" autocomplete="off" hidden>
           <fieldset id="broker-enrollment" hidden disabled>
-            <p class="small muted">首次授权：通过券商只读核对后，下面的资金账号将成为本站唯一实盘账户。网页不能换绑。</p>
+            <p class="small muted">通过券商只读核对后，下面的资金账号将成为本站唯一实盘账户。如需更换，须先登录并解绑原账号。</p>
             <div class="control-fields">
               <label>一次性开通码<input id="broker-enrollment-code" type="password" maxlength="64" required autocomplete="new-password"></label>
               <label>输入「同意绑定」<input id="broker-enrollment-confirm" maxlength="8" required autocomplete="off"></label>
@@ -71,6 +79,15 @@
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
           <p id="broker-holdings" class="small muted" hidden></p>
+          <details id="broker-unbind-panel" hidden>
+            <summary>解绑当前账户</summary>
+            <form id="broker-unbind" method="post" autocomplete="off">
+              <p class="small muted">有未结或待核对的真实委托时不能解绑。解绑不会撤单或清除今日委托累计额。</p>
+              <label>输入「确认解绑」<input id="broker-unbind-confirm" maxlength="8" required autocomplete="off"></label>
+              <button type="submit" class="button danger">确认解绑账户</button>
+              <output id="broker-unbind-result" aria-live="polite"></output>
+            </form>
+          </details>
           <details id="broker-settings" hidden>
             <summary>设置 · 实盘委托限额</summary>
             <form id="broker-limits" method="post" autocomplete="off">

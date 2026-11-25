@@ -82,7 +82,12 @@ async function run() {
         if (url.pathname === `${prefix}/broker/enroll`) accountBound = connected = true;
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
         if ([`${prefix}/broker`, `${prefix}/broker/connect`, `${prefix}/broker/enroll`].includes(url.pathname))
-          return route.fulfill({json: {connected, account_bound: accountBound, account_tail: '1234', limits}});
+          return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234', limits}});
+        if (url.pathname === `${prefix}/broker/unbind`) {
+          if (request.postDataJSON().confirmation !== '确认解绑') return route.fulfill({status: 409, json: {detail: '请输入「确认解绑」。'}});
+          accountBound = connected = false;
+          return route.fulfill({json: {connected, account_bound: accountBound, rebind_code: 'N'.repeat(43)}});
+        }
         if (url.pathname === `${prefix}/broker/limits`) {
           limits = {...limits, ...request.postDataJSON()};
           return route.fulfill({json: limits});
@@ -218,6 +223,21 @@ async function run() {
       await page.locator('#broker-confirm button').click();
       await page.getByText(/收到委托编号 999/).waitFor();
       assert.equal(writes.filter(([path]) => path.endsWith('/submit')).length, 1);
+      await page.getByText('解绑当前账户').click();
+      await page.locator('#broker-unbind-confirm').fill('确认解绑');
+      await page.getByRole('button', {name: '确认解绑账户'}).click();
+      await page.locator('#broker-rebind-box').waitFor();
+      assert.equal(await page.locator('#broker-rebind-code').inputValue(), 'N'.repeat(43));
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      assert.deepEqual(writes.find(([path]) => path.endsWith('/unbind'))[1], {confirmation: '确认解绑'});
+      assert.equal(await noOverflow(), true, `rebind overflow at ${width}`);
+      await page.locator('#broker-enrollment-code').fill('N'.repeat(43));
+      await page.locator('#broker-enrollment-confirm').fill('同意绑定');
+      await page.locator('#broker-account').fill('000008765');
+      await page.locator('#broker-password').fill('synthetic-password');
+      await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
+      await page.locator('#broker-session').waitFor();
+      assert.equal(await page.locator('#broker-rebind-code').inputValue(), '');
       assert.equal(await noOverflow(), true, `broker overflow at ${width}`);
       await page.close();
       console.log(`Dashboard and D0 preview passed at ${width}px`);
