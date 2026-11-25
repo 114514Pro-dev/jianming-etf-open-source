@@ -49,6 +49,7 @@ async function run() {
       const writes = [];
       let live = false;
       let connected = false;
+      let syncState = 'not_linked';
       let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
       let brokerState = 'disabled';
       let marketState = 'open';
@@ -69,6 +70,11 @@ async function run() {
         }
         if (request.method() !== 'GET') writes.push([url.pathname, request.postDataJSON(), request.headers()]);
         const prefix = '/api/d0-control';
+        if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState}});
+        if (url.pathname === `${prefix}/sync/pair`) {
+          syncState = 'waiting';
+          return route.fulfill({json: {code: 'A'.repeat(32), expires_in: 300}});
+        }
         if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live, broker_state: brokerState, market_state: marketState}});
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
         if ([`${prefix}/broker`, `${prefix}/broker/connect`].includes(url.pathname)) return route.fulfill({json: {connected, account_tail: '1234', limits}});
@@ -149,6 +155,16 @@ async function run() {
       assert.equal(await page.locator('#broker').isVisible(), true);
       assert.match(await page.locator('#broker-unavailable').innerText(), /尚未启用券商连接/);
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
+      assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), '/api/d0-control/sync/download');
+      await page.getByRole('button', {name: '生成配对码'}).click();
+      await page.locator('#sync-code-box').waitFor();
+      assert.equal(await page.locator('#sync-code').inputValue(), 'A'.repeat(32));
+      syncState = 'linked';
+      await page.getByRole('button', {name: '刷新连接状态'}).click();
+      await page.getByText(/已接收到本机工具的连接/).waitFor();
+      assert.equal(await page.locator('#sync-code-box').isVisible(), false);
+      syncState = 'verified';
+      await page.getByText(/工具报告：东方财富只读核对成功/).waitFor({timeout: 8000});
       brokerState = 'private_origin_required';
       await page.locator('#refresh-signal').click();
       await page.getByText(/当前地址或网络未获券商访问授权/).waitFor();

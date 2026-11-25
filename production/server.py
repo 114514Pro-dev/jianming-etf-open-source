@@ -10,6 +10,7 @@ import asyncio
 import concurrent.futures
 import getpass
 import hashlib
+from io import BytesIO
 import hmac
 import json
 import logging
@@ -34,7 +35,9 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from d0_connector_sync import ConnectorSync, SyncError
+from d0_signal_feed import SignalFeed
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.staticfiles import StaticFiles
 from web_automation import market_schedule
@@ -1416,6 +1419,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     secure = os.environ.get("ETF_WEB_SECURE_COOKIE", "0") == "1"
     hosts = [h.strip() for h in os.environ.get("ETF_WEB_TRUSTED_HOSTS", "127.0.0.1,localhost,::1,testserver").split(",") if h.strip()]
     d0_web = os.environ.get("ETF_D0_WEB_PREVIEW") == "1"
+    connector_sync = ConnectorSync() if d0_web else None
+    signal_feed = SignalFeed() if d0_web else None
+    signal_path = "/api/d0-control/sync/signal"
+    connector_native = {"/api/d0-control/sync/claim", "/api/d0-control/sync/report"} if connector_sync else set()
     emtl_web = os.environ.get("ETF_EMTL_WEB_LIVE") == "1"
     broker_origin = os.environ.get("ETF_EMTL_ORIGIN", "")
     broker_orders = os.environ.get("ETF_EMTL_ORDERS_ENABLED") == "1"
@@ -1472,6 +1479,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             if app.state.realtime_paper is not None:
                 app.state.runtime.register_shutdown_dependency(app.state.realtime_paper, name="paper")
                 app.state.runtime.paper_service = app.state.realtime_paper
+                attach_signal = getattr(app.state.realtime_paper, "set_signal_listener", None)
+                if signal_feed and callable(attach_signal):
+                    loop = asyncio.get_running_loop()
+                    attach_signal(lambda target: loop.call_soon_threadsafe(signal_feed.publish, target))
 
             app.state.ww_paper = None
             # A supplied legacy test factory remains an explicit single-service
@@ -1635,7 +1646,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         path = request.url.path
         current = None
         try:
-            if path.startswith("/api/") and path not in {"/api/session", "/api/login"}:
+            native_sync = (request.method == "POST" and path in connector_native) or (signal_feed and request.method == "GET" and path == signal_path)
+            if path.startswith("/api/") and path not in {"/api/session", "/api/login"} and not native_sync:
                 current = await asyncio.to_thread(session, request, renew=True)
                 if request.method not in {"GET", "HEAD", "OPTIONS"}:
                     csrf = request.headers.get("x-csrf-token", "")
@@ -1738,8 +1750,11 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 raise HTTPException(503, "无法撤销设备登录状态，请稍后重试") from None
         with auth_lock:
             sessions.pop(token, None)
+        owner = hashlib.sha256(token.encode()).hexdigest()
+        if connector_sync:
+            connector_sync.revoke(owner)
         if app.state.broker_desk:
-            app.state.broker_desk.disconnect(hashlib.sha256(token.encode()).hexdigest())
+            app.state.broker_desk.disconnect(owner)
         response = JSONResponse({"ok": True})
         response.delete_cookie("etf_session", httponly=True, secure=secure, samesite="strict")
         return response
@@ -1924,6 +1939,89 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         def d0_control_page():
             page = (ROOT / "web_static" / "d0-control.html").read_text("utf-8")
             return HTMLResponse(page.replace("__UI_VERSION__", ui_version), headers={"Cache-Control": "no-store"})
+
+        def require_sync_https(request: Request):
+            if not secure or request.url.scheme != "https":
+                raise HTTPException(403, "同步工具仅支持 HTTPS 网站。")
+
+        def sync_owner(request: Request):
+            require_sync_https(request)
+            return hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
+
+        @app.get("/api/d0-control/sync/download")
+        def sync_download(request: Request):
+            require_sync_https(request)
+            buf = BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as bundle:
+                for name in ("launch.cmd", "pilot.py", "requirements-win.lock", "README.txt"):
+                    bundle.write(ROOT / "d0_connector" / name, f"Jianming-ETF-Sync/{name}")
+            return Response(buf.getvalue(), media_type="application/zip",
+                            headers={"Content-Disposition": 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'})
+
+        @app.get("/api/d0-control/sync/status")
+        def sync_status(request: Request):
+            return connector_sync.status(sync_owner(request))
+
+        @app.post("/api/d0-control/sync/pair")
+        def sync_pair(request: Request):
+            owner = sync_owner(request)
+            if request.headers.get("origin") != str(request.base_url).rstrip("/"):
+                raise HTTPException(403, "请在原网站生成配对码。")
+            return connector_sync.start(owner)
+
+        async def sync_payload(request: Request, keys):
+            require_sync_https(request)
+            if request.headers.get("origin") or request.headers.get("cookie"):
+                raise HTTPException(403, "此接口只允许本机同步工具使用。")
+            try:
+                raw = await request.body()
+                if len(raw) > 512:
+                    raise ValueError
+                value = json.loads(raw)
+                if not isinstance(value, dict) or set(value) != keys:
+                    raise ValueError
+                return value
+            except (ValueError, UnicodeError):
+                raise HTTPException(400, "同步请求无效。") from None
+
+        @app.post("/api/d0-control/sync/claim")
+        async def sync_claim(request: Request):
+            fields = await sync_payload(request, {"code"})
+            try:
+                return connector_sync.claim(fields["code"])
+            except SyncError as exc:
+                raise HTTPException(409, str(exc)) from None
+
+        @app.post("/api/d0-control/sync/report")
+        async def sync_report(request: Request):
+            fields = await sync_payload(request, {"sync_token", "state"})
+            try:
+                return connector_sync.report(fields["sync_token"], fields["state"])
+            except SyncError as exc:
+                raise HTTPException(409, str(exc)) from None
+
+        @app.get(signal_path)
+        async def sync_signal(request: Request):
+            require_sync_https(request)
+            if request.headers.get("origin") or request.headers.get("cookie"):
+                raise HTTPException(403, "此接口只允许本机同步工具使用。")
+            auth = request.headers.get("authorization", "")
+            token = auth[7:] if auth.startswith("Bearer ") else ""
+            owner = connector_sync.signal_owner(token)
+            if owner is None:
+                raise HTTPException(401, "信号订阅已过期，请重新配对。")
+            after = request.query_params.get("after", "")
+            if after and not re.fullmatch(r"[a-f0-9]{16}", after):
+                raise HTTPException(400, "信号游标无效。")
+            if owner in signal_feed.active or len(signal_feed.active) >= signal_feed.max_listeners:
+                raise HTTPException(429, "信号通道正在使用，请稍后重试。")
+            signal_feed.active.add(owner)
+            try:
+                return await signal_feed.next(after, lambda: connector_sync.signal_owner(token) == owner)
+            except PermissionError:
+                raise HTTPException(401, "信号订阅已过期，请重新配对。") from None
+            finally:
+                signal_feed.active.discard(owner)
 
         @app.get("/api/d0-control/status")
         def d0_control_status(request: Request):

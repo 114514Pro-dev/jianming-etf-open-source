@@ -14,6 +14,8 @@
   let brokerAvailable = false;
   let liveOrders = false;
   let orderToken = null;
+  let syncTimer = null;
+  let syncRequest = 0;
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
   for (const symbol of symbols) {
@@ -43,6 +45,63 @@
     if (!res.ok) throw new Error(typeof value.detail === 'string' ? value.detail : '请求未成功。');
     return value;
   }
+
+  const syncMessages = {
+    not_linked: '未连接，或上次连接已过期。',
+    waiting: '等待本机同步工具连接…',
+    linked: '已接收到本机工具的连接。尚未收到只读核对结果。',
+    verified: '已接收到工具报告：东方财富只读核对成功。不代表可以下单。',
+    failed: '已接收到工具报告：只读核对未通过。请在本机查看原因。',
+  };
+
+  function clearSyncCode() {
+    byId('sync-code').value = '';
+    byId('sync-code-box').hidden = true;
+  }
+
+  async function readSyncStatus() {
+    const id = ++syncRequest;
+    clearTimeout(syncTimer);
+    try {
+      const result = await call('/api/d0-control/sync/status');
+      if (id !== syncRequest) return;
+      if (result.state !== 'waiting') clearSyncCode();
+      byId('sync-status').textContent = syncMessages[result.state] || '同步状态不可用。';
+      if (result.state === 'waiting' || result.state === 'linked') {
+        syncTimer = setTimeout(readSyncStatus, 2500);
+      }
+    } catch (error) {
+      if (id === syncRequest) {
+        clearSyncCode();
+        byId('sync-status').textContent = error.message;
+      }
+    }
+  }
+
+  byId('sync-start').addEventListener('click', async () => {
+    const button = byId('sync-start');
+    button.disabled = true;
+    byId('sync-refresh').disabled = true;
+    ++syncRequest;
+    clearTimeout(syncTimer);
+    clearSyncCode();
+    try {
+      const result = await call('/api/d0-control/sync/pair', {method: 'POST', headers: {'X-CSRF-Token': csrf}});
+      byId('sync-code').value = result.code;
+      byId('sync-code-box').hidden = false;
+      await readSyncStatus();
+    } catch (error) { byId('sync-status').textContent = error.message; }
+    finally {
+      button.disabled = false;
+      byId('sync-refresh').disabled = false;
+    }
+  });
+  byId('sync-refresh').addEventListener('click', readSyncStatus);
+  byId('sync-copy').addEventListener('click', async () => {
+    const code = byId('sync-code');
+    try { await navigator.clipboard.writeText(code.value); }
+    catch { code.select(); }
+  });
 
   async function refresh() {
     byId('refresh-signal').disabled = true;
@@ -287,6 +346,7 @@
     byId('notice').textContent = '已登录简明 ETF。';
     byId('workspace').hidden = false;
     if (location.hash === '#broker') byId('broker').scrollIntoView({behavior: 'instant'});
+    readSyncStatus();
     return refresh();
   }).catch((error) => { byId('notice').textContent = error.message; });
 })();
