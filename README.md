@@ -38,7 +38,7 @@ $env:ETF_SECTOR_RESEARCH_AUTO_UPDATE = '0'
 
 ## D0 EMTL 拟单与只读检查
 
-[`scripts/emtl_d0.py`](scripts/emtl_d0.py) 可以读取现有 D0 模拟盘信号生成拟单，也可以单独通过 EMTL 只读检查账户连接；这两种模式都不会提交真实委托。见[使用与验收说明](docs/emtl-d0-preview.md)。
+[`scripts/emtl_d0.py`](scripts/emtl_d0.py) 可以读取现有 D0 模拟盘信号生成拟单，也可以单独通过 EMTL 只读检查账户连接；这两种模式都不会提交真实委托。见[使用与验收说明](docs/emtl-d0-preview.md)。私有实例也可按[网页控制台说明](docs/d0-web-control.md)开启仅拟单的网页。
 
 ## 东方财富实盘接入
 
