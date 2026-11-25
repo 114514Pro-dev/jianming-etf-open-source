@@ -16,6 +16,7 @@ class Pairing:
     digest: str | None
     state: str
     expires: float
+    signal_digest: str | None = None
 
 
 class ConnectorSync:
@@ -76,8 +77,22 @@ class ConnectorSync:
             self._prune(now)
             entry = self._match(digest, 'waiting')
             token = secrets.token_urlsafe(24)
+            signal_token = secrets.token_urlsafe(24)
             entry.digest, entry.state, entry.expires = self._digest(token), 'linked', now + self.link_seconds
-            return {'sync_token': token, 'expires_in': self.link_seconds}
+            entry.signal_digest = self._digest(signal_token)
+            return {'sync_token': token, 'signal_token': signal_token, 'expires_in': self.link_seconds}
+
+    def signal_owner(self, token):
+        try:
+            token_digest = self._verify_format(token)
+        except SyncError:
+            return None
+        with self._lock:
+            self._prune(self._now())
+            for owner, entry in self._entries.items():
+                if entry.signal_digest and secrets.compare_digest(entry.signal_digest, token_digest):
+                    return owner
+            return None
 
     def report(self, token, state):
         if state not in ('verified', 'failed'):
@@ -87,5 +102,5 @@ class ConnectorSync:
             now = self._now()
             self._prune(now)
             entry = self._match(digest, 'linked')
-            entry.digest, entry.state, entry.expires = None, state, now + self.link_seconds
+            entry.digest, entry.state = None, state
             return {'ok': True}

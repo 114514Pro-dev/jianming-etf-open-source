@@ -1,4 +1,5 @@
 """Strategy-scoped paper routes and backups, using only synthetic private homes."""
+import asyncio
 from contextlib import ExitStack, contextmanager, closing
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -190,6 +191,8 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_connector_status_is_session_bound_and_native_code_single_use(self):
         with patch.dict(os.environ, {'ETF_D0_WEB_PREVIEW': '1'}):
             app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
+        callbacks = []
+        self.d0.set_signal_listener = callbacks.append
         prefix = '/api/d0-control/sync/'
         site = 'https://testserver'
         async with app.router.lifespan_context(app):
@@ -218,6 +221,20 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await request(app, prefix + 'report', method='POST', data=fields))[0], 200)
             self.assertEqual((await request(app, prefix + 'report', method='POST', data=fields))[0], 409)
             self.assertEqual((await request(app, prefix + 'status', cookie=cookie))[2], {'state': 'verified'})
+            self.assertEqual((await request(app, prefix + 'signal', authorization='Bearer ' + linked['sync_token']))[0], 401)
+            auth = 'Bearer ' + linked['signal_token']
+            status, _, first = await request(app, prefix + 'signal', authorization=auth)
+            self.assertEqual((status, first['signal']), (200, None))
+            watcher = asyncio.create_task(request(app, prefix + 'signal', query_string='after=' + first['cursor'], authorization=auth))
+            await asyncio.sleep(.02)
+            self.assertFalse(watcher.done())
+            signal = {'schema': 'jianming-etf.confirmed-target.v1', 'strategy': 'D0', 'signal_id': 'synthetic'}
+            callbacks[0](signal)
+            _, _, update = await asyncio.wait_for(watcher, 1)
+            self.assertEqual(update['signal'], signal)
+            self.assertNotEqual(update['cursor'], first['cursor'])
+            self.assertEqual((await request(app, '/api/logout', method='POST', cookie=cookie, csrf=csrf, origin=site))[0], 200)
+            self.assertEqual((await request(app, prefix + 'signal', authorization=auth))[0], 401)
 
     async def test_default_and_ww_empty_snapshots_are_distinct_and_stopped(self):
         for code in ('D0', WW):

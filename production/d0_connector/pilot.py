@@ -1,8 +1,10 @@
 """Local EMTL read-only pilot; syncs only coarse status to the site."""
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from importlib.metadata import version
 import re
+import time
 
 
 SYNC_BASE = 'https://8.210.39.161/api/d0-control/sync/'
@@ -31,14 +33,80 @@ def send_sync(action, value, session_factory=None):
                 raise ValueError
             result = response.json()
             if action == 'claim':
-                token = result['sync_token']
-                if not isinstance(token, str) or not re.fullmatch(r'[A-Za-z0-9_-]{32}', token):
+                tokens = (result['sync_token'], result['signal_token'])
+                if not all(isinstance(token, str) and re.fullmatch(r'[A-Za-z0-9_-]{32}', token) for token in tokens):
                     raise ValueError
-                return token
+                return tokens
             if result.get('ok') is not True:
                 raise ValueError
     except Exception:
         raise SyncFailed('无法同步：请核对网络，或在网站生成新的配对码。') from None
+
+
+TARGET_SYMBOLS = ('SZSE.159915', 'SHSE.512800', 'SHSE.518880', 'SHSE.511010')
+
+
+def describe_target(target):
+    if (not isinstance(target, dict) or target.get('schema') != 'jianming-etf.confirmed-target.v1'
+            or target.get('strategy') != 'D0' or not isinstance(target.get('signal_id'), str)):
+        raise ValueError
+    confirmed = date.fromisoformat(target['confirmed_day'])
+    execution = date.fromisoformat(target['execution_day'])
+    start = datetime.fromisoformat(target['eligible_at'])
+    if start.utcoffset() is None or start.date() != execution or execution <= confirmed:
+        raise ValueError
+    weights = target['targets']
+    if not isinstance(weights, dict) or set(weights) != set(TARGET_SYMBOLS):
+        raise ValueError
+    values = [quantity(weights[s]) for s in TARGET_SYMBOLS]
+    cash = quantity(target['cash_weight'])
+    if any(value > 1 for value in values + [cash]) or abs(sum(values) + cash - 1) > Decimal('0.000001'):
+        raise ValueError
+    detail = ' · '.join(f'{symbol[5:]} {weight:.1%}' for symbol, weight in zip(TARGET_SYMBOLS, values))
+    return f'D0 {confirmed}，最早执行 {start:%Y-%m-%d %H:%M %z}\n{detail} · 现金 {cash:.1%}'
+
+
+def listen_signals(token, stop, emit, session_factory=None):
+    """Wait for target-only responses. Contains no order-generation or dealer calls."""
+    if session_factory is None:
+        from requests import Session
+        session_factory = Session
+    after = ''
+    with session_factory() as session:
+        session.trust_env = False
+        while not stop.is_set():
+            try:
+                session.cookies.clear()
+                res = session.get(SYNC_BASE + 'signal', headers={'Authorization': 'Bearer ' + token},
+                                  params={'after': after}, timeout=(5, 15), allow_redirects=False)
+                received = round(time.time() * 1000)
+                if res.status_code in (401, 403):
+                    emit('信号订阅已结束。请在网站重新生成配对码。')
+                    return
+                if res.status_code != 200:
+                    raise ValueError
+                data = res.json()
+                cursor = data['cursor']
+                if not re.fullmatch(r'[a-f0-9]{16}', cursor):
+                    raise ValueError
+                if data.get('unchanged') is True:
+                    if not after or cursor != after:
+                        raise ValueError
+                    continue
+                if cursor == after:
+                    raise ValueError
+                if data['signal'] is None:
+                    emit('信号通道已连接，等待新的已确认 D0 信号。')
+                else:
+                    text = describe_target(data['signal'])
+                    age = received - data['published_at_ms']
+                    timing = f'距网站发布时间约 {age} 毫秒（含等待及两端时钟误差）' if age >= 0 else '两端时钟不同步，无法估算到达时间'
+                    emit(f'已收到 D0 目标 · {timing}\n{text}\n仅收信号，不产生真实委托。')
+                after = cursor
+            except Exception:
+                if not stop.is_set():
+                    emit('信号通道暂不可用，等待重连；不会下单。')
+                stop.wait(1)
 
 
 class CheckError(Exception):
@@ -150,7 +218,28 @@ def main():
     result = tk.StringVar(value='尚未开始验收。')
     ttk.Label(panel, textvariable=result, wraplength=365, justify='left').pack(anchor='w', pady=(0, 12))
     messages = queue.Queue()
+    signal_updates = queue.Queue()
+    signal_status = tk.StringVar(value='请先配对。')
+    ttk.Label(panel, textvariable=signal_status, wraplength=365, justify='left').pack(anchor='w', pady=(0, 12))
     sync_token = None
+    signal_stop = threading.Event()
+
+    def collect_signals():
+        try:
+            while True:
+                source, message = signal_updates.get_nowait()
+                if source is signal_stop and not source.is_set():
+                    signal_status.set(message)
+        except queue.Empty:
+            root.after(100, collect_signals)
+
+    def start_signals(token):
+        nonlocal signal_stop
+        signal_stop.set()
+        signal_stop = stop = threading.Event()
+        signal_status.set('已配对，正在等待网站信号…')
+        threading.Thread(target=listen_signals,
+                         args=(token, stop, lambda message: signal_updates.put((stop, message))), daemon=True).start()
 
     def collect():
         nonlocal sync_token
@@ -159,10 +248,15 @@ def main():
         except queue.Empty:
             root.after(100, collect)
             return
-        sync_token = token
         if kind == 'pair':
             link_label.set(message)
+            if token:
+                sync_token, feed_token = token
+                start_signals(feed_token)
+            else:
+                sync_token = None
         else:
+            sync_token = None
             result.set(message)
             if sync_result:
                 link_label.set(sync_result)
@@ -171,6 +265,8 @@ def main():
 
     def start_pair():
         entered = code.get().strip()
+        signal_stop.set()
+        signal_status.set('等待新配对。')
         code.delete(0, tk.END)
         for button in (pair, submit):
             button.state(['disabled'])
@@ -224,6 +320,13 @@ def main():
     submit = ttk.Button(controls, text='登录并只读核对', command=start)
     submit.pack(side='left')
     code.focus_set()
+    root.after(100, collect_signals)
+
+    def close():
+        signal_stop.set()
+        root.destroy()
+
+    root.protocol('WM_DELETE_WINDOW', close)
     root.mainloop()
 
 

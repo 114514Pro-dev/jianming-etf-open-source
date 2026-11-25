@@ -488,6 +488,15 @@ class PaperLedger:
         result['rules']={'version':RULE_VERSION,'coverage_from':'2026-07-06','coverage_until':'2026-12-31','coverage_note':'本模型日历及规则覆盖边界，不是法律有效期','instruments':copy.deepcopy(self.rules),'source_delay_max_seconds':60,'match_age_max_seconds':60,'queue_delay_max_seconds':5,'partial_fills_supported':False,'sessions':['09:30<=t<11:30','13:00<=t<14:57'],'order_type':'DAY limit'}
         result['model_notice']=MODEL_NOTICE
         return result
+    def confirmed_target(self):
+        """Read just the signal, without building account views or P&L history."""
+        db = self._db()
+        try:
+            value = db.execute("SELECT json_extract(data, '$.signal') FROM ledger WHERE id=1").fetchone()
+            return json.loads(value[0]) if value and value[0] else None
+        finally:
+            db.close()
+
     def snapshot(self):
         db=self._db()
         try:

@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'production' / 'd0_connector'))
-from pilot import CheckError, SyncFailed, check_account, send_sync
+from pilot import CheckError, SyncFailed, check_account, describe_target, listen_signals, send_sync
 
 
 class Broker:
@@ -60,8 +60,8 @@ class PilotTests(unittest.TestCase):
         def session():
             return mock
 
-        mock.post.return_value.json.return_value = {'sync_token': token}
-        self.assertEqual(send_sync('claim', 'B' * 32, session), token)
+        mock.post.return_value.json.return_value = {'sync_token': token, 'signal_token': 'C' * 32}
+        self.assertEqual(send_sync('claim', 'B' * 32, session), (token, 'C' * 32))
         mock.post.return_value.json.return_value = {'ok': True}
         send_sync('report', (token, 'verified'), session)
         with self.assertRaises(SyncFailed):
@@ -72,6 +72,29 @@ class PilotTests(unittest.TestCase):
         self.assertEqual(second['json'], {'sync_token': token, 'state': 'verified'})
         self.assertFalse(second['allow_redirects'])
         self.assertFalse(mock.trust_env)
+
+    def test_local_listener_rejects_wrong_strategy_and_preserves_cursor(self):
+        import threading
+        from time import time
+
+        target = {'schema': 'jianming-etf.confirmed-target.v1', 'strategy': 'D0', 'signal_id': 'confirmed-D0',
+                  'confirmed_day': '2026-11-25', 'execution_day': '2026-11-26', 'eligible_at': '2026-11-26T09:30:00+08:00',
+                  'targets': {'SZSE.159915': '.5', 'SHSE.512800': '0', 'SHSE.518880': '0', 'SHSE.511010': '0'},
+                  'cash_weight': '.5'}
+        with self.assertRaises(ValueError):
+            describe_target({**target, 'strategy': 'WW'})
+        stop, output = threading.Event(), []
+        mock = Mock()
+        mock.__enter__ = Mock(return_value=mock)
+        mock.__exit__ = Mock(return_value=None)
+        first = Mock(status_code=200)
+        first.json.return_value = {'cursor': 'b' * 16, 'signal': target, 'published_at_ms': int(time() * 1000)}
+        mock.get.side_effect = [first, Mock(status_code=401)]
+        listen_signals('A' * 32, stop, output.append, lambda: mock)
+        self.assertIn('159915 50.0%', output[0])
+        self.assertIn('不产生真实委托', output[0])
+        self.assertEqual(mock.get.call_args_list[1].kwargs['params'], {'after': 'b' * 16})
+        self.assertIn('订阅已结束', output[1])
 
     def test_bad_input_never_calls_broker(self):
         def fail(**kwargs):

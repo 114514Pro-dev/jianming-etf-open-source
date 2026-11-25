@@ -20,13 +20,13 @@ IDENTITY = 'synthetic_D0-account_2026'
 
 
 async def request(app, path, *, query_string=b'', method='GET', data=None, cookie=None, csrf=None, origin=None,
-                  peer='127.0.0.1', as_json=True):
+                  peer='127.0.0.1', as_json=True, authorization=None):
     """Small ASGI client that keeps the path separate from the query bytes."""
     body = b'' if data is None else json.dumps(data).encode()
     headers = [(b'host', b'testserver'), (b'content-length', str(len(body)).encode())]
     if data is not None:
         headers.append((b'content-type', b'application/json'))
-    for name, value in (('cookie', cookie), ('x-csrf-token', csrf), ('origin', origin)):
+    for name, value in (('cookie', cookie), ('x-csrf-token', csrf), ('origin', origin), ('authorization', authorization)):
         if value:
             headers.append((name.encode(), value.encode()))
     query = query_string.encode('ascii') if isinstance(query_string, str) else query_string

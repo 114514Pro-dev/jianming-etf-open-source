@@ -37,6 +37,7 @@ from decimal import Decimal
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from d0_connector_sync import ConnectorSync, SyncError
+from d0_signal_feed import SignalFeed
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.staticfiles import StaticFiles
 from web_automation import market_schedule
@@ -1419,6 +1420,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     hosts = [h.strip() for h in os.environ.get("ETF_WEB_TRUSTED_HOSTS", "127.0.0.1,localhost,::1,testserver").split(",") if h.strip()]
     d0_web = os.environ.get("ETF_D0_WEB_PREVIEW") == "1"
     connector_sync = ConnectorSync() if d0_web else None
+    signal_feed = SignalFeed() if d0_web else None
+    signal_path = "/api/d0-control/sync/signal"
     connector_native = {"/api/d0-control/sync/claim", "/api/d0-control/sync/report"} if connector_sync else set()
     emtl_web = os.environ.get("ETF_EMTL_WEB_LIVE") == "1"
     broker_origin = os.environ.get("ETF_EMTL_ORIGIN", "")
@@ -1476,6 +1479,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             if app.state.realtime_paper is not None:
                 app.state.runtime.register_shutdown_dependency(app.state.realtime_paper, name="paper")
                 app.state.runtime.paper_service = app.state.realtime_paper
+                attach_signal = getattr(app.state.realtime_paper, "set_signal_listener", None)
+                if signal_feed and callable(attach_signal):
+                    loop = asyncio.get_running_loop()
+                    attach_signal(lambda target: loop.call_soon_threadsafe(signal_feed.publish, target))
 
             app.state.ww_paper = None
             # A supplied legacy test factory remains an explicit single-service
@@ -1639,8 +1646,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         path = request.url.path
         current = None
         try:
-            native_post = request.method == "POST" and path in connector_native
-            if path.startswith("/api/") and path not in {"/api/session", "/api/login"} and not native_post:
+            native_sync = (request.method == "POST" and path in connector_native) or (signal_feed and request.method == "GET" and path == signal_path)
+            if path.startswith("/api/") and path not in {"/api/session", "/api/login"} and not native_sync:
                 current = await asyncio.to_thread(session, request, renew=True)
                 if request.method not in {"GET", "HEAD", "OPTIONS"}:
                     csrf = request.headers.get("x-csrf-token", "")
@@ -1992,6 +1999,29 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 return connector_sync.report(fields["sync_token"], fields["state"])
             except SyncError as exc:
                 raise HTTPException(409, str(exc)) from None
+
+        @app.get(signal_path)
+        async def sync_signal(request: Request):
+            require_sync_https(request)
+            if request.headers.get("origin") or request.headers.get("cookie"):
+                raise HTTPException(403, "此接口只允许本机同步工具使用。")
+            auth = request.headers.get("authorization", "")
+            token = auth[7:] if auth.startswith("Bearer ") else ""
+            owner = connector_sync.signal_owner(token)
+            if owner is None:
+                raise HTTPException(401, "信号订阅已过期，请重新配对。")
+            after = request.query_params.get("after", "")
+            if after and not re.fullmatch(r"[a-f0-9]{16}", after):
+                raise HTTPException(400, "信号游标无效。")
+            if owner in signal_feed.active or len(signal_feed.active) >= signal_feed.max_listeners:
+                raise HTTPException(429, "信号通道正在使用，请稍后重试。")
+            signal_feed.active.add(owner)
+            try:
+                return await signal_feed.next(after, lambda: connector_sync.signal_owner(token) == owner)
+            except PermissionError:
+                raise HTTPException(401, "信号订阅已过期，请重新配对。") from None
+            finally:
+                signal_feed.active.discard(owner)
 
         @app.get("/api/d0-control/status")
         def d0_control_status(request: Request):

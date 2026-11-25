@@ -556,6 +556,7 @@ class PaperService:
         self._source_state = {"source_status": "waiting", "reason": "not_observed", "last_observed": None}
         self._last_batch = None
         self._plans = 0
+        self._signal_listener = None
         self._thread = None
         if start_worker:
             self._thread = threading.Thread(target=self._worker, name="realtime-paper" + ("-ww" if strategy != 'D0' else ""), daemon=True)
@@ -578,7 +579,29 @@ class PaperService:
                         break
                     except Exception:
                         self._source_state["reason"] = "activity_invalidation_failed"
+            self._notify_signal_listener()
             self._stop.wait(5)
+
+    def set_signal_listener(self, listener):
+        """Attach the optional D0 read-only publisher; never mutate the ledger."""
+        if self.strategy != 'D0':
+            raise ValueError('signal listener only supports D0')
+        self._signal_listener = listener
+
+    def _notify_signal_listener(self):
+        listener = self._signal_listener
+        if listener is None or self._stop.is_set():
+            return
+        try:
+            with self._lock:
+                target = None if self._source_state.get('historical_seed') else self.export_live_signal()
+        except Exception:
+            target = None
+        try:
+            listener(target)
+        except Exception:
+            # A failed website listener must not stop market updates.
+            pass
 
     def _ensure_open(self):
         with self._admission:
@@ -971,7 +994,7 @@ class PaperService:
 
         with self._lock:
             return project_live_signal(
-                signal=self.ledger.snapshot().get("signal"), strategy=self.strategy,
+                signal=self.ledger.confirmed_target(), strategy=self.strategy,
                 calendar=self.ledger.calendar, now=_now(self.now),
                 observed_at=self._source_state.get("last_observed"),
                 source_status=self._source_state.get("source_status"),
