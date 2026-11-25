@@ -66,8 +66,8 @@ def describe_target(target):
     return f'D0 {confirmed}，最早执行 {start:%Y-%m-%d %H:%M %z}\n{detail} · 现金 {cash:.1%}'
 
 
-def listen_signals(token, stop, emit, session_factory=None):
-    """Wait for target-only responses. Contains no order-generation or dealer calls."""
+def listen_signals(token, stop, emit, session_factory=None, *, on_target=None):
+    """Wait for target-only responses; optionally observe decoded targets in tests."""
     if session_factory is None:
         from requests import Session
         session_factory = Session
@@ -99,6 +99,8 @@ def listen_signals(token, stop, emit, session_factory=None):
                     emit('信号通道已连接，等待新的已确认 D0 信号。')
                 else:
                     text = describe_target(data['signal'])
+                    if on_target is not None:
+                        on_target(data['signal'])
                     age = received - data['published_at_ms']
                     timing = f'距网站发布时间约 {age} 毫秒（含等待及两端时钟误差）' if age >= 0 else '两端时钟不同步，无法估算到达时间'
                     emit(f'已收到 D0 目标 · {timing}\n{text}\n仅收信号，不产生真实委托。')
