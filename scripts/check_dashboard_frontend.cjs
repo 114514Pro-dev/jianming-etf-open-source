@@ -70,6 +70,8 @@ async function run() {
         }
         if (request.method() !== 'GET') writes.push([url.pathname, request.postDataJSON(), request.headers()]);
         const prefix = '/api/d0-control';
+        if (url.pathname === `${prefix}/sync/download`) return route.fulfill({body: 'synthetic',
+          contentType: 'application/zip', headers: {'Content-Disposition': 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'}});
         if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState}});
         if (url.pathname === `${prefix}/sync/pair`) {
           syncState = 'waiting';
@@ -153,11 +155,14 @@ async function run() {
       assert.equal(await page.locator('#allocation').isVisible(), false);
 
       assert.equal(await page.locator('#broker').isVisible(), true);
-      assert.match(await page.locator('#broker-unavailable').innerText(), /尚未启用券商连接/);
+      assert.match(await page.locator('#broker-unavailable').innerText(), /网页实盘尚未配置/);
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
       assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), '/api/d0-control/sync/download');
-      await page.getByRole('button', {name: '生成配对码'}).click();
+      const download = page.waitForEvent('download');
+      await page.getByRole('button', {name: '开始配对'}).click();
+      assert.equal((await download).suggestedFilename(), 'Jianming-ETF-Sync-Windows.zip');
       await page.locator('#sync-code-box').waitFor();
+      assert.equal(await page.evaluate(() => localStorage.getItem('etf-connector-bootstrap-v2-requested')), 'yes');
       assert.equal(await page.locator('#sync-code').inputValue(), 'A'.repeat(32));
       syncState = 'linked';
       await page.getByRole('button', {name: '刷新连接状态'}).click();

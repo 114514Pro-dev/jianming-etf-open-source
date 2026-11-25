@@ -206,7 +206,7 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((status, headers['content-type'], headers['cache-control']), (200, 'application/zip', 'no-store'))
             with zipfile.ZipFile(BytesIO(zipped)) as archive:
                 self.assertEqual({Path(name).name for name in archive.namelist()},
-                                 {'launch.cmd', 'pilot.py', 'requirements-win.lock', 'README.txt'})
+                                 {'launch.cmd', 'bootstrap.ps1', 'pilot.py', 'requirements-win.lock', 'README.txt'})
             identity = {'code': pair['code']}
             self.assertEqual((await request(app, prefix + 'claim', method='POST', data=identity, origin=site))[0], 403)
             status, _, linked = await request(app, prefix + 'claim', method='POST', data=identity)

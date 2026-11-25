@@ -16,6 +16,9 @@
   let orderToken = null;
   let syncTimer = null;
   let syncRequest = 0;
+  const downloadKey = 'etf-connector-bootstrap-v2-requested';
+  let downloadRequested = false;
+  try { downloadRequested = localStorage.getItem(downloadKey) === 'yes'; } catch { /* optional */ }
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
   for (const symbol of symbols) {
@@ -78,7 +81,13 @@
     }
   }
 
+  byId('sync-download').addEventListener('click', () => {
+    downloadRequested = true;
+    try { localStorage.setItem(downloadKey, 'yes'); } catch { /* optional */ }
+  });
   byId('sync-start').addEventListener('click', async () => {
+    // Browsers cannot detect installed software; request the ZIP once on a user gesture.
+    if (!downloadRequested) byId('sync-download').click();
     const button = byId('sync-start');
     button.disabled = true;
     byId('sync-refresh').disabled = true;
@@ -135,11 +144,11 @@
     brokerAvailable = state === 'available';
     liveOrders = brokerAvailable && orders;
     const messages = {
-      disabled: '本站尚未启用券商连接。现在只能拟单，不能输入证券密码或发出委托。',
+      disabled: '网页实盘尚未配置授权资金账号和访问白名单。本机工具可配对和收信；这不会开启真实委托。',
       private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = liveOrders ? '手动实盘' : brokerAvailable ? '仅只读核对' : state === 'disabled' ? '未开通' : '暂不可用';
+    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? '网页仅只读核对' : state === 'disabled' ? '网页实盘未配置' : '网页实盘暂不可用';
     badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
     byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders;

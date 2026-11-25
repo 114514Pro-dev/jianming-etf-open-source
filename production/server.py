@@ -1953,7 +1953,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             require_sync_https(request)
             buf = BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as bundle:
-                for name in ("launch.cmd", "pilot.py", "requirements-win.lock", "README.txt"):
+                for name in ("launch.cmd", "bootstrap.ps1", "pilot.py", "requirements-win.lock", "README.txt"):
                     bundle.write(ROOT / "d0_connector" / name, f"Jianming-ETF-Sync/{name}")
             return Response(buf.getvalue(), media_type="application/zip",
                             headers={"Content-Disposition": 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'})
