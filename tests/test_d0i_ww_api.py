@@ -1,6 +1,7 @@
 """Strategy-scoped paper routes and backups, using only synthetic private homes."""
 from contextlib import ExitStack, contextmanager, closing
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 import hashlib
 import json
 import os
@@ -185,6 +186,38 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((status, result), (200, limits))
                 desk.update_limits.assert_called_once_with(owner, limits)
             desk.close.assert_called_once()
+
+    async def test_connector_status_is_session_bound_and_native_code_single_use(self):
+        with patch.dict(os.environ, {'ETF_D0_WEB_PREVIEW': '1'}):
+            app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
+        prefix = '/api/d0-control/sync/'
+        site = 'https://testserver'
+        async with app.router.lifespan_context(app):
+            self.assertEqual((await request(app, prefix + 'status'))[0], 401)
+            _, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password})
+            cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
+            self.assertEqual((await request(app, prefix + 'pair', method='POST', cookie=cookie, csrf=csrf))[0], 403)
+            status, headers, pair = await request(app, prefix + 'pair', method='POST', cookie=cookie, csrf=csrf, origin=site)
+            self.assertEqual((status, headers['cache-control']), (200, 'no-store'))
+            status, headers, zipped = await request(app, prefix + 'download', cookie=cookie, as_json=False)
+            self.assertEqual((status, headers['content-type'], headers['cache-control']), (200, 'application/zip', 'no-store'))
+            with zipfile.ZipFile(BytesIO(zipped)) as archive:
+                self.assertEqual({Path(name).name for name in archive.namelist()},
+                                 {'launch.cmd', 'pilot.py', 'requirements-win.lock', 'README.txt'})
+            identity = {'code': pair['code']}
+            self.assertEqual((await request(app, prefix + 'claim', method='POST', data=identity, origin=site))[0], 403)
+            status, _, linked = await request(app, prefix + 'claim', method='POST', data=identity)
+            self.assertEqual(status, 200)
+            self.assertEqual((await request(app, prefix + 'claim', method='POST', data=identity))[0], 409)
+            self.assertEqual((await request(app, prefix + 'status', cookie=cookie))[2], {'state': 'linked'})
+            _, other_headers, _ = await request(app, '/api/login', method='POST', data={'password': self.password})
+            other = other_headers['set-cookie'].split(';', 1)[0]
+            self.assertEqual((await request(app, prefix + 'status', cookie=other))[2], {'state': 'not_linked'})
+            fields = {'sync_token': linked['sync_token'], 'state': 'verified'}
+            self.assertEqual((await request(app, prefix + 'report', method='POST', data={**fields, 'cash': 123}))[0], 400)
+            self.assertEqual((await request(app, prefix + 'report', method='POST', data=fields))[0], 200)
+            self.assertEqual((await request(app, prefix + 'report', method='POST', data=fields))[0], 409)
+            self.assertEqual((await request(app, prefix + 'status', cookie=cookie))[2], {'state': 'verified'})
 
     async def test_default_and_ww_empty_snapshots_are_distinct_and_stopped(self):
         for code in ('D0', WW):

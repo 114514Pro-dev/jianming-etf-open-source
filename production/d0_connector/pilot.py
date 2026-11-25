@@ -1,8 +1,44 @@
-"""Local EMTL compatibility pilot. This module has no trading or web endpoint."""
+"""Local EMTL read-only pilot; syncs only coarse status to the site."""
 from dataclasses import dataclass
 from decimal import Decimal
 from importlib.metadata import version
 import re
+
+
+SYNC_BASE = 'https://8.210.39.161/api/d0-control/sync/'
+
+
+class SyncFailed(Exception):
+    pass
+
+
+def send_sync(action, value, session_factory=None):
+    """Do not forward any broker data, cookies, or passwords to the website."""
+    try:
+        if session_factory is None:
+            from requests import Session
+            session_factory = Session
+        if action == 'claim' and isinstance(value, str) and re.fullmatch(r'[A-Za-z0-9_-]{32}', value):
+            payload = {'code': value}
+        elif action == 'report' and value[1] in ('verified', 'failed') and re.fullmatch(r'[A-Za-z0-9_-]{32}', value[0]):
+            payload = {'sync_token': value[0], 'state': value[1]}
+        else:
+            raise ValueError
+        with session_factory() as session:
+            session.trust_env = False
+            response = session.post(SYNC_BASE + action, json=payload, timeout=(5, 8), allow_redirects=False)
+            if response.status_code != 200:
+                raise ValueError
+            result = response.json()
+            if action == 'claim':
+                token = result['sync_token']
+                if not isinstance(token, str) or not re.fullmatch(r'[A-Za-z0-9_-]{32}', token):
+                    raise ValueError
+                return token
+            if result.get('ok') is not True:
+                raise ValueError
+    except Exception:
+        raise SyncFailed('无法同步：请核对网络，或在网站生成新的配对码。') from None
 
 
 class CheckError(Exception):
@@ -99,7 +135,12 @@ def main():
     root.title('简明 ETF · 东方财富本机只读验收')
     panel = ttk.Frame(root, padding=20)
     panel.pack(expand=True, fill='both')
-    ttk.Label(panel, text='只登录及查询，不提交或撤销委托。\n凭据不保存，不发送给简明 ETF 网站。').pack(anchor='w', pady=(0, 12))
+    ttk.Label(panel, text='只登录及查询，不提交或撤销委托。\n只向网站同步核对状态，不发送凭据或账户数据。').pack(anchor='w', pady=(0, 12))
+    ttk.Label(panel, text='网站生成的一次性配对码').pack(anchor='w')
+    code = ttk.Entry(panel, width=36)
+    code.pack(fill='x', pady=(2, 4))
+    link_label = tk.StringVar(value='尚未连接网站。')
+    ttk.Label(panel, textvariable=link_label, wraplength=365).pack(anchor='w', pady=(0, 8))
     ttk.Label(panel, text='证券资金账号').pack(anchor='w')
     account = ttk.Entry(panel, width=36)
     account.pack(fill='x', pady=(2, 8))
@@ -109,39 +150,80 @@ def main():
     result = tk.StringVar(value='尚未开始验收。')
     ttk.Label(panel, textvariable=result, wraplength=365, justify='left').pack(anchor='w', pady=(0, 12))
     messages = queue.Queue()
+    sync_token = None
 
     def collect():
+        nonlocal sync_token
         try:
-            message = messages.get_nowait()
+            kind, token, message, sync_result = messages.get_nowait()
         except queue.Empty:
             root.after(100, collect)
+            return
+        sync_token = token
+        if kind == 'pair':
+            link_label.set(message)
         else:
             result.set(message)
-            submit.state(['!disabled'])
+            if sync_result:
+                link_label.set(sync_result)
+        for button in (pair, submit):
+            button.state(['!disabled'])
+
+    def start_pair():
+        entered = code.get().strip()
+        code.delete(0, tk.END)
+        for button in (pair, submit):
+            button.state(['disabled'])
+        link_label.set('正在与网站配对…')
+
+        def worker():
+            try:
+                token = send_sync('claim', entered)
+                messages.put(('pair', token, '网站已确认连接。完成只读核对后会同步一次状态。', None))
+            except SyncFailed as error:
+                messages.put(('pair', None, str(error), None))
+
+        threading.Thread(target=worker, daemon=True).start()
+        root.after(100, collect)
 
     def start():
-        submit.state(['disabled'])
+        for button in (pair, submit):
+            button.state(['disabled'])
         result.set('正在直连东方财富进行只读核对…')
         username, supplied = account.get().strip(), password.get()
+        token = sync_token
         password.delete(0, tk.END)
 
         def worker():
             try:
                 value = check_account(username, supplied)
+                state = 'verified'
                 message = (f'只读核对成功 · 账户尾号 {value.account_tail}\n'
                            f'可用资金 ¥{value.available_cash:,.2f}；持仓 {value.position_count} 项；'
                            f'当日委托 {value.open_and_closed_order_count} 条。\n'
                            '已断开连接。请与券商官方客户端核对；这不表示下单已验证。')
             except CheckError as error:
+                state = 'failed'
                 message = str(error)
-            messages.put(message)
+            link_result = '未连接网站，核对结果仅显示在本机。'
+            if token:
+                try:
+                    send_sync('report', (token, state))
+                    link_result = '状态已同步。如需再次同步，请生成新配对码。'
+                except SyncFailed as error:
+                    link_result = str(error)
+            messages.put(('check', None, message, link_result))
 
         threading.Thread(target=worker, daemon=True).start()
         root.after(100, collect)
 
-    submit = ttk.Button(panel, text='登录并只读核对', command=start)
-    submit.pack(anchor='w')
-    account.focus_set()
+    controls = ttk.Frame(panel)
+    controls.pack(fill='x')
+    pair = ttk.Button(controls, text='连接网站', command=start_pair)
+    pair.pack(side='left', padx=(0, 8))
+    submit = ttk.Button(controls, text='登录并只读核对', command=start)
+    submit.pack(side='left')
+    code.focus_set()
     root.mainloop()
 
 

@@ -170,6 +170,12 @@ dialog::backdrop { background: var(--scrim); }
 .d0-console #broker form .button { margin-top: .7rem; }
 .broker-confirm { border: 1px solid var(--danger-line); border-radius: var(--radius); padding: .85rem; }
 .broker-unavailable { padding: .8rem .95rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface2); color: var(--muted); margin: 0; }
+.connector-sync { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.connector-sync h3 { margin-bottom: .3rem; }
+.connector-sync #sync-status { margin: .75rem 0 0; }
+.connector-code { display: grid; grid-template-columns: minmax(0, 23rem) auto; justify-content: start; gap: .3rem .6rem; margin-top: .65rem; }
+.connector-code label { grid-column: 1 / -1; }
+.connector-code input { width: 100%; font-family: var(--mono); }
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.25rem; padding: .25rem .55rem;
   flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface2); color: var(--text);

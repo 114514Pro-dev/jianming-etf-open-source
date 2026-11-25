@@ -38,6 +38,21 @@
         <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span id="broker-badge" class="pill neutral">检查中</span></div>
         <p class="small muted">独立于网站登录和 D0 拟单。连接券商不会下单；连接最多保留 5 分钟。</p>
         <p id="broker-unavailable" class="broker-unavailable" role="status">正在检查此站点是否允许实盘连接…</p>
+        <section class="connector-sync" aria-labelledby="connector-title">
+          <h3 id="connector-title">本机同步工具 <span class="pill neutral">Windows · 只读</span></h3>
+          <p class="small muted">下载并运行 <code>launch.cmd</code>，将下面生成的一次性配对码粘贴到工具。网站只接收连接和只读核对状态，不读取券商凭证、账户资料或本机文件。</p>
+          <div class="button-row">
+            <a href="/api/d0-control/sync/download" class="button secondary" download>下载同步工具</a>
+            <button type="button" id="sync-start" class="button secondary">生成配对码</button>
+            <button type="button" id="sync-refresh" class="text-button">刷新连接状态</button>
+          </div>
+          <div id="sync-code-box" class="connector-code" hidden>
+            <label for="sync-code">一次性配对码（5 分钟有效）</label>
+            <input id="sync-code" type="text" readonly autocomplete="off" spellcheck="false">
+            <button type="button" id="sync-copy" class="button secondary small-button">复制</button>
+          </div>
+          <p id="sync-status" class="small muted" role="status">尚未连接同步工具。</p>
+        </section>
         <form id="broker-connect" method="post" autocomplete="off" hidden>
           <div class="control-fields">
             <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>

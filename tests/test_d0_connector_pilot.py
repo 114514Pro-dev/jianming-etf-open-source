@@ -2,9 +2,10 @@ from decimal import Decimal
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import Mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'desktop' / 'd0_connector'))
-from pilot import CheckError, check_account
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'production' / 'd0_connector'))
+from pilot import CheckError, SyncFailed, check_account, send_sync
 
 
 class Broker:
@@ -49,6 +50,28 @@ class PilotTests(unittest.TestCase):
                     check_account('0000001234', 'TEST_PASSWORD_DO_NOT_DISPLAY', lambda **kw: broker)
                 self.assertNotIn('TEST_', str(error.exception))
                 self.assertEqual(broker.calls[-1], 'close')
+
+    def test_site_receives_only_status_and_scoped_credential(self):
+        token = 'A' * 32
+        mock = Mock()
+        mock.__enter__ = Mock(return_value=mock)
+        mock.__exit__ = Mock(return_value=None)
+        mock.post.return_value.status_code = 200
+        def session():
+            return mock
+
+        mock.post.return_value.json.return_value = {'sync_token': token}
+        self.assertEqual(send_sync('claim', 'B' * 32, session), token)
+        mock.post.return_value.json.return_value = {'ok': True}
+        send_sync('report', (token, 'verified'), session)
+        with self.assertRaises(SyncFailed):
+            send_sync('report', (token, 'cash=12345'), session)
+        self.assertEqual(len(mock.post.call_args_list), 2)
+        first, second = [call.kwargs for call in mock.post.call_args_list]
+        self.assertEqual(first['json'], {'code': 'B' * 32})
+        self.assertEqual(second['json'], {'sync_token': token, 'state': 'verified'})
+        self.assertFalse(second['allow_redirects'])
+        self.assertFalse(mock.trust_env)
 
     def test_bad_input_never_calls_broker(self):
         def fail(**kwargs):
