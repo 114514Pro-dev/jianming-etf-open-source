@@ -49,6 +49,7 @@ async function run() {
       const writes = [];
       let live = false;
       let connected = false;
+      let accountBound = false;
       let syncState = 'not_linked';
       let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
       let brokerState = 'disabled';
@@ -70,14 +71,23 @@ async function run() {
         }
         if (request.method() !== 'GET') writes.push([url.pathname, request.postDataJSON(), request.headers()]);
         const prefix = '/api/d0-control';
+        if (url.pathname === `${prefix}/sync/download`) return route.fulfill({body: 'synthetic',
+          contentType: 'application/zip', headers: {'Content-Disposition': 'attachment; filename="Jianming-ETF-Sync-Windows.zip"'}});
         if (url.pathname === `${prefix}/sync/status`) return route.fulfill({json: {state: syncState}});
         if (url.pathname === `${prefix}/sync/pair`) {
           syncState = 'waiting';
           return route.fulfill({json: {code: 'A'.repeat(32), expires_in: 300}});
         }
-        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live, broker_state: brokerState, market_state: marketState}});
+        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live && accountBound, broker_orders_configured: live, account_bound: accountBound, broker_state: brokerState, market_state: marketState}});
+        if (url.pathname === `${prefix}/broker/enroll`) accountBound = connected = true;
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
-        if ([`${prefix}/broker`, `${prefix}/broker/connect`].includes(url.pathname)) return route.fulfill({json: {connected, account_tail: '1234', limits}});
+        if ([`${prefix}/broker`, `${prefix}/broker/connect`, `${prefix}/broker/enroll`].includes(url.pathname))
+          return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234', limits}});
+        if (url.pathname === `${prefix}/broker/unbind`) {
+          if (request.postDataJSON().confirmation !== '确认解绑') return route.fulfill({status: 409, json: {detail: '请输入「确认解绑」。'}});
+          accountBound = connected = false;
+          return route.fulfill({json: {connected, account_bound: accountBound, rebind_code: 'N'.repeat(43)}});
+        }
         if (url.pathname === `${prefix}/broker/limits`) {
           limits = {...limits, ...request.postDataJSON()};
           return route.fulfill({json: limits});
@@ -153,11 +163,14 @@ async function run() {
       assert.equal(await page.locator('#allocation').isVisible(), false);
 
       assert.equal(await page.locator('#broker').isVisible(), true);
-      assert.match(await page.locator('#broker-unavailable').innerText(), /尚未启用券商连接/);
+      assert.match(await page.locator('#broker-unavailable').innerText(), /网页实盘尚未开启/);
       assert.equal(await page.locator('#broker-connect').isVisible(), false);
       assert.equal(await page.getByRole('link', {name: '下载同步工具'}).getAttribute('href'), '/api/d0-control/sync/download');
-      await page.getByRole('button', {name: '生成配对码'}).click();
+      const download = page.waitForEvent('download');
+      await page.getByRole('button', {name: '开始配对'}).click();
+      assert.equal((await download).suggestedFilename(), 'Jianming-ETF-Sync-Windows.zip');
       await page.locator('#sync-code-box').waitFor();
+      assert.equal(await page.evaluate(() => localStorage.getItem('etf-connector-bootstrap-v2-requested')), 'yes');
       assert.equal(await page.locator('#sync-code').inputValue(), 'A'.repeat(32));
       syncState = 'linked';
       await page.getByRole('button', {name: '刷新连接状态'}).click();
@@ -176,11 +189,16 @@ async function run() {
       await page.goto(origin + '/d0-control');
       await page.locator('#broker-connect').waitFor();
       assert.match(await page.locator('#signal').innerText(), /非连续交易时段/);
+      await page.locator('#broker-enrollment').waitFor();
+      await page.locator('#broker-enrollment-code').fill('E'.repeat(43));
+      await page.locator('#broker-enrollment-confirm').fill('同意绑定');
       await page.locator('#broker-account').fill('000001234');
       await page.locator('#broker-password').fill('synthetic-password');
-      await page.locator('#broker-connect button').click();
+      await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
       await page.locator('#broker-session').waitFor();
       assert.equal(await page.locator('#broker-password').inputValue(), '');
+      assert.equal(await page.locator('#broker-enrollment-code').inputValue(), '');
+      assert.equal(writes.filter(([path]) => path.endsWith('/enroll')).length, 1);
       assert.equal(await page.locator('#broker-order').isVisible(), false);
       await page.locator('#broker-settings summary').click();
       assert.equal(await page.locator('#broker-single').inputValue(), '800000');
@@ -205,6 +223,21 @@ async function run() {
       await page.locator('#broker-confirm button').click();
       await page.getByText(/收到委托编号 999/).waitFor();
       assert.equal(writes.filter(([path]) => path.endsWith('/submit')).length, 1);
+      await page.getByText('解绑当前账户').click();
+      await page.locator('#broker-unbind-confirm').fill('确认解绑');
+      await page.getByRole('button', {name: '确认解绑账户'}).click();
+      await page.locator('#broker-rebind-box').waitFor();
+      assert.equal(await page.locator('#broker-rebind-code').inputValue(), 'N'.repeat(43));
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      assert.deepEqual(writes.find(([path]) => path.endsWith('/unbind'))[1], {confirmation: '确认解绑'});
+      assert.equal(await noOverflow(), true, `rebind overflow at ${width}`);
+      await page.locator('#broker-enrollment-code').fill('N'.repeat(43));
+      await page.locator('#broker-enrollment-confirm').fill('同意绑定');
+      await page.locator('#broker-account').fill('000008765');
+      await page.locator('#broker-password').fill('synthetic-password');
+      await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
+      await page.locator('#broker-session').waitFor();
+      assert.equal(await page.locator('#broker-rebind-code').inputValue(), '');
       assert.equal(await noOverflow(), true, `broker overflow at ${width}`);
       await page.close();
       console.log(`Dashboard and D0 preview passed at ${width}px`);

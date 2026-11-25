@@ -186,6 +186,25 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 status, _, result = await request(app, '/api/d0-control/broker/limits', data=limits, **options)
                 self.assertEqual((status, result), (200, limits))
                 desk.update_limits.assert_called_once_with(owner, limits)
+                desk.bound = False
+                fields = {**data, 'enrollment_code': 'E' * 43, 'confirmation': '同意绑定'}
+                action = '/api/d0-control/broker/enroll'
+                denied = {**options, 'peer': '198.51.100.11'}
+                self.assertEqual((await request(app, action, data=fields, **denied))[0], 403)
+                desk.enroll.assert_not_called()
+                desk.enroll.return_value = {'connected': True, 'account_bound': True, 'account_tail': '1234'}
+                status, _, result = await request(app, action, data=fields, **options)
+                self.assertEqual((status, result['account_bound']), (200, True))
+                desk.enroll.assert_called_once_with(owner, fields)
+                action = '/api/d0-control/broker/unbind'
+                confirm = {'confirmation': '确认解绑'}
+                self.assertEqual((await request(app, action, data=confirm, **denied))[0], 403)
+                desk.unbind.assert_not_called()
+                desk.unbind.return_value = {'connected': False, 'account_bound': False, 'rebind_code': 'N' * 43}
+                status, headers, payload = await request(app, action, data=confirm, **options)
+                self.assertEqual((status, payload['account_bound'], payload['rebind_code']), (200, False, 'N' * 43))
+                self.assertEqual(headers.get('cache-control'), 'no-store')
+                desk.unbind.assert_called_once_with(owner, confirm)
             desk.close.assert_called_once()
 
     async def test_connector_status_is_session_bound_and_native_code_single_use(self):
@@ -206,7 +225,7 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((status, headers['content-type'], headers['cache-control']), (200, 'application/zip', 'no-store'))
             with zipfile.ZipFile(BytesIO(zipped)) as archive:
                 self.assertEqual({Path(name).name for name in archive.namelist()},
-                                 {'launch.cmd', 'pilot.py', 'requirements-win.lock', 'README.txt'})
+                                 {'launch.cmd', 'bootstrap.ps1', 'pilot.py', 'requirements-win.lock', 'README.txt'})
             identity = {'code': pair['code']}
             self.assertEqual((await request(app, prefix + 'claim', method='POST', data=identity, origin=site))[0], 403)
             status, _, linked = await request(app, prefix + 'claim', method='POST', data=identity)

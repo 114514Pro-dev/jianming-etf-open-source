@@ -35,15 +35,15 @@
     <p id="login" hidden><a href="/" class="button secondary">先登录简明 ETF</a>，再打开本页。</p>
     <section id="workspace" hidden>
       <section id="broker" class="panel control-panel" aria-labelledby="broker-title">
-        <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span id="broker-badge" class="pill neutral">检查中</span></div>
+        <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span id="broker-badge" class="pill neutral">检查网页实盘</span></div>
         <p class="small muted">独立于网站登录和 D0 拟单。连接券商不会下单；连接最多保留 5 分钟。</p>
         <p id="broker-unavailable" class="broker-unavailable" role="status">正在检查此站点是否允许实盘连接…</p>
         <section class="connector-sync" aria-labelledby="connector-title">
           <h3 id="connector-title">本机同步工具 <span class="pill neutral">Windows · 只读</span></h3>
-          <p class="small muted">下载并运行 <code>launch.cmd</code>，将一次性配对码粘贴到工具。本机将接收已确认的 D0 目标（仅显示，不下单）。网站只接收连接和核对状态，不读取券商凭证、账户资料或本机文件。</p>
+          <p class="small muted">首次开始配对会下载工具。解压后运行 <code>launch.cmd</code>；如果缺少 Python，启动器会下载并校验官方安装程序。工具接收已确认的 D0 目标；此处的连接状态不代表实盘已开通。</p>
           <div class="button-row">
-            <a href="/api/d0-control/sync/download" class="button secondary" download>下载同步工具</a>
-            <button type="button" id="sync-start" class="button secondary">生成配对码</button>
+            <a id="sync-download" href="/api/d0-control/sync/download" class="button secondary" download="Jianming-ETF-Sync-Windows.zip">下载同步工具</a>
+            <button type="button" id="sync-start" class="button secondary">开始配对</button>
             <button type="button" id="sync-refresh" class="text-button">刷新连接状态</button>
           </div>
           <div id="sync-code-box" class="connector-code" hidden>
@@ -53,17 +53,41 @@
           </div>
           <p id="sync-status" class="small muted" role="status">尚未连接同步工具。</p>
         </section>
+        <div id="broker-rebind-box" class="broker-unavailable" hidden>
+          <p class="small">已解绑。请保存这枚仅显示一次的开通码，用来绑定下一账户。本站不会取消券商已有委托。</p>
+          <div class="connector-code">
+            <label for="broker-rebind-code">新的单次开通码</label>
+            <input id="broker-rebind-code" type="password" readonly autocomplete="off">
+            <button id="broker-copy-rebind" class="button secondary small-button" type="button">复制</button>
+          </div>
+        </div>
         <form id="broker-connect" method="post" autocomplete="off" hidden>
+          <fieldset id="broker-enrollment" hidden disabled>
+            <p class="small muted">通过券商只读核对后，下面的资金账号将成为本站唯一实盘账户。如需更换，须先登录并解绑原账号。</p>
+            <div class="control-fields">
+              <label>一次性开通码<input id="broker-enrollment-code" type="password" maxlength="64" required autocomplete="new-password"></label>
+              <label>输入「同意绑定」<input id="broker-enrollment-confirm" maxlength="8" required autocomplete="off"></label>
+            </div>
+          </fieldset>
           <div class="control-fields">
             <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
             <label>证券交易密码<input id="broker-password" type="password" maxlength="128" required autocomplete="new-password"></label>
           </div>
-          <button type="submit" class="button primary">登录东方财富证券</button>
+          <button id="broker-connect-submit" type="submit" class="button primary">登录东方财富证券</button>
         </form>
         <output id="broker-status" aria-live="polite" hidden>尚未连接。</output>
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
           <p id="broker-holdings" class="small muted" hidden></p>
+          <details id="broker-unbind-panel" hidden>
+            <summary>解绑当前账户</summary>
+            <form id="broker-unbind" method="post" autocomplete="off">
+              <p class="small muted">有未结或待核对的真实委托时不能解绑。解绑不会撤单或清除今日委托累计额。</p>
+              <label>输入「确认解绑」<input id="broker-unbind-confirm" maxlength="8" required autocomplete="off"></label>
+              <button type="submit" class="button danger">确认解绑账户</button>
+              <output id="broker-unbind-result" aria-live="polite"></output>
+            </form>
+          </details>
           <details id="broker-settings" hidden>
             <summary>设置 · 实盘委托限额</summary>
             <form id="broker-limits" method="post" autocomplete="off">

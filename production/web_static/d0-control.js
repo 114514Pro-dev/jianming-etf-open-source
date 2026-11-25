@@ -13,9 +13,14 @@
   let brokerConnected = false;
   let brokerAvailable = false;
   let liveOrders = false;
+  let ordersConfigured = false;
+  let accountBound = false;
   let orderToken = null;
   let syncTimer = null;
   let syncRequest = 0;
+  const downloadKey = 'etf-connector-bootstrap-v2-requested';
+  let downloadRequested = false;
+  try { downloadRequested = localStorage.getItem(downloadKey) === 'yes'; } catch { /* optional */ }
   const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
   for (const symbol of symbols) {
@@ -78,7 +83,13 @@
     }
   }
 
+  byId('sync-download').addEventListener('click', () => {
+    downloadRequested = true;
+    try { localStorage.setItem(downloadKey, 'yes'); } catch { /* optional */ }
+  });
   byId('sync-start').addEventListener('click', async () => {
+    // Browsers cannot detect installed software; request the ZIP once on a user gesture.
+    if (!downloadRequested) byId('sync-download').click();
     const button = byId('sync-start');
     button.disabled = true;
     byId('sync-refresh').disabled = true;
@@ -114,7 +125,7 @@
       const closed = {closed: '当前为非连续交易时段。', unknown: '交易日历未覆盖当前日期。'};
       byId('signal').textContent = (marketReady ? 'D0 行情已就绪；提交时会重新核对。' : closed[status.market_state] || (earliest && +earliest > Date.now() ? '信号尚未到执行时间。' : '交易时段内正在等待新鲜行情或确认信号。')) + when;
       byId('inputs').disabled = !marketReady;
-      setAvailability(status.broker_state, status.live_orders_enabled === true);
+      setAvailability(status.broker_state, status.broker_orders_configured === true, status.account_bound === true);
       if (brokerAvailable) {
         try { setBroker(await call('/api/d0-control/broker')); }
         catch { setAvailability('unavailable'); }
@@ -131,15 +142,17 @@
     }
   }
 
-  function setAvailability(state, orders = false) {
+  function setAvailability(state, orders = false, bound = false) {
     brokerAvailable = state === 'available';
-    liveOrders = brokerAvailable && orders;
+    ordersConfigured = brokerAvailable && orders;
+    accountBound = brokerAvailable && bound;
+    liveOrders = ordersConfigured && accountBound;
     const messages = {
-      disabled: '本站尚未启用券商连接。现在只能拟单，不能输入证券密码或发出委托。',
+      disabled: '网页实盘尚未开启。本机工具可配对和收信；这不会开启真实委托。',
       private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = liveOrders ? '手动实盘' : brokerAvailable ? '仅只读核对' : state === 'disabled' ? '未开通' : '暂不可用';
+    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? (accountBound ? '网页仅只读核对' : '待首次授权') : state === 'disabled' ? '网页实盘未开启' : '网页实盘暂不可用';
     badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
     byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders;
@@ -149,6 +162,7 @@
     message.textContent = messages[state] || '无法确认券商连接状态。请刷新 D0 状态后重试。';
     byId('broker-status').hidden = !brokerAvailable;
     if (!brokerAvailable) {
+      clearRebindCode();
       byId('broker-password').value = '';
       setBroker({connected: false});
     }
@@ -165,10 +179,29 @@
     byId('broker-phrase').value = '';
   }
 
+  function clearRebindCode() {
+    byId('broker-rebind-box').hidden = true;
+    byId('broker-rebind-code').value = '';
+    byId('broker-rebind-code').type = 'password';
+    byId('broker-copy-rebind').textContent = '复制';
+  }
+
   function setBroker(state) {
     brokerConnected = brokerAvailable && state.connected === true;
     byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
+    const enrolling = brokerAvailable && !accountBound && !brokerConnected;
+    byId('broker-enrollment').hidden = !enrolling;
+    byId('broker-enrollment').disabled = !enrolling;
+    byId('broker-connect-submit').textContent = enrolling ? '授权并绑定唯一资金账号' : '登录东方财富证券';
     byId('broker-session').hidden = !brokerConnected;
+    const unbind = byId('broker-unbind-panel');
+    unbind.hidden = !brokerConnected || state.can_unbind !== true;
+    if (unbind.hidden) {
+      unbind.open = false;
+      byId('broker-unbind-confirm').value = '';
+      byId('broker-unbind-result').textContent = '';
+    }
+    if (accountBound) clearRebindCode();
     byId('broker-order-fields').disabled = !liveOrders || !brokerConnected || !marketReady;
     byId('broker-settings').hidden = !brokerConnected || !state.limits;
     if (state.limits) showLimits(state.limits);
@@ -181,6 +214,7 @@
     byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
     if (!brokerConnected) {
       clearDraft();
+      byId('broker-result').textContent = '';
       holdings.textContent = '';
       holdings.hidden = true;
       byId('broker-settings').open = false;
@@ -215,8 +249,21 @@
     const password = byId('broker-password');
     const payload = {username: byId('broker-account').value.trim(), password: password.value};
     password.value = '';
+    const enroll = !accountBound;
+    if (enroll) {
+      const code = byId('broker-enrollment-code');
+      const confirmation = byId('broker-enrollment-confirm');
+      payload.enrollment_code = code.value.trim();
+      payload.confirmation = confirmation.value.trim();
+      code.value = '';
+      confirmation.value = '';
+    }
     byId('broker-status').textContent = '正在登录并只读核对…';
-    try { setBroker(await brokerCall('connect', payload)); }
+    try {
+      const state = await brokerCall(enroll ? 'enroll' : 'connect', payload);
+      if (enroll && state.connected === true && state.account_bound === true) setAvailability('available', ordersConfigured, true);
+      setBroker(state);
+    }
     catch (error) { byId('broker-status').textContent = error.message; }
     finally { submit.disabled = false; }
   });
@@ -226,6 +273,46 @@
     try { setBroker(await brokerCall('disconnect', {})); }
     catch (error) { byId('broker-status').textContent = error.message; }
     finally { byId('broker-disconnect').disabled = false; }
+  });
+
+  // The one-time code is kept only on this page, never in browser storage.
+  window.addEventListener('pagehide', clearRebindCode);
+  byId('broker-copy-rebind').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const code = byId('broker-rebind-code');
+    try {
+      await navigator.clipboard.writeText(code.value);
+      button.textContent = '已复制';
+    } catch {
+      code.type = 'text';
+      code.select();
+      button.textContent = '请手动复制';
+    }
+  });
+
+  byId('broker-unbind').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!brokerConnected) return;
+    const submit = event.submitter;
+    const confirmation = byId('broker-unbind-confirm');
+    const output = byId('broker-unbind-result');
+    submit.disabled = true;
+    byId('broker-disconnect').disabled = true;
+    output.textContent = '正在核对委托记录…';
+    try {
+      const state = await brokerCall('unbind', {confirmation: confirmation.value.trim()});
+      setAvailability('available', ordersConfigured, false);
+      setBroker(state);
+      byId('broker-account').value = '';
+      byId('broker-rebind-code').value = state.rebind_code;
+      byId('broker-rebind-box').hidden = false;
+      byId('broker-copy-rebind').focus();
+    } catch (error) { output.textContent = error.message; }
+    finally {
+      confirmation.value = '';
+      submit.disabled = false;
+      byId('broker-disconnect').disabled = false;
+    }
   });
 
   byId('broker-order').addEventListener('input', clearDraft);
