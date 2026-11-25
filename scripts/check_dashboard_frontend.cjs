@@ -59,6 +59,9 @@ async function run() {
       await page.locator('#market-stats .metric').first().waitFor();
       assert.equal(await page.locator('#market-stats .metric').count(), 4);
       assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'light');
+      await page.locator('.topbar [data-theme-toggle]').click();
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark');
+      assert.equal(await page.locator('.topbar [data-theme-toggle]').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.locator('.dashboard-grid').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length), width >= 1100 ? 2 : 1);
       assert.equal(await noOverflow(), true, `market overflow at ${width}`);
       await page.locator('.dashboard-hero [data-goto="realtime-paper"]').click();
@@ -66,6 +69,9 @@ async function run() {
 
       await page.goto(origin + '/d0-control');
       await page.locator('#inputs:enabled').waitFor();
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark');
+      await page.locator('[data-theme-toggle]').click();
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'light');
       await page.locator('[name=cash]').fill('870000');
       await page.locator('[name=available_cash]').fill('870000');
       await page.locator('[name=commission_rate]').fill('0.0003');

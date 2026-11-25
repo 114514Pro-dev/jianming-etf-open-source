@@ -397,7 +397,7 @@ def frontend_release():
     """One release identity for HTML and its assets, computed at app startup."""
     folder = ROOT / "web_static"
     digest = hashlib.sha256()
-    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js", "d0-control.html", "d0-control.js", "dashboard.css"):
+    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js", "d0-control.html", "d0-control.js", "dashboard.css", "dashboard-theme.js"):
         digest.update(name.encode())
         digest.update((folder / name).read_bytes())
     for name in ("realtime-paper.js", "realtime-paper.css", "realtime-paper-comparison.js", "realtime-paper-comparison.css",

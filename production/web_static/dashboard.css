@@ -190,6 +190,54 @@ body {
 .d0-console #broker form .button { margin-top: .7rem; }
 .d0-console .broker-confirm { border: 1px solid #e5bdc7; background: #fcf1f3; border-radius: var(--radius); padding: .85rem; }
 
+.theme-toggle {
+  display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: 0 0 auto;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface2); color: var(--text);
+  font: 1.1rem/1 system-ui; cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle[aria-pressed='true'] { color: var(--accent); }
+.login-language, .console-nav { display: flex; align-items: center; gap: .6rem; }
+.console-nav { justify-content: space-between; }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #111113;
+  --surface: #19191c;
+  --surface2: #232326;
+  --line: #39393e;
+  --text: #f1f1f3;
+  --muted: #b4b4bc;
+  --accent: #a7dfbf;
+  --accent-dim: #27342e;
+  --amber: #e8c687;
+  --red: #f0a5b4;
+  --shadow: 0 12px 36px #0005;
+  --dashboard-glass: #1c1c20ee;
+}
+[data-theme='dark'] body { background: radial-gradient(ellipse at 72% 0%, #2d2d3280, transparent 34rem), var(--bg); }
+[data-theme='dark'] :is(.sidebar, .mobile-navigation, .more-dialog) { background: #171719f5; }
+[data-theme='dark'] :is(.sidebar-bottom, .login-story .decor-chart, .app-shell .topbar .connection, .app-shell .realtime-paper .rtp-strategy-chooser) {
+  background: var(--surface2); border-color: var(--line); color: var(--text);
+}
+[data-theme='dark'] :is(.dashboard-hero, .d0-console .console-hero) {
+  background: linear-gradient(120deg, #2c2c31, #1c1c20); border-color: #47474d;
+}
+[data-theme='dark'] :is(.dashboard-hero p, .login-story .login-points span, .login-story .decor-chart span, .login-card .login-remember-help) { color: var(--muted); }
+[data-theme='dark'] :is(.app-shell, .login-screen, .d0-console) :is(input, select, textarea) { background: #222226; }
+[data-theme='dark'] :is(.sidebar .nav-item, .sidebar-research-link):hover,
+[data-theme='dark'] .secondary:hover:not(:disabled) { background: #303035; }
+[data-theme='dark'] :is(.app-shell, .d0-console) th { color: var(--muted); background: var(--surface2); }
+[data-theme='dark'] :is(.app-shell, .d0-console) .pill { color: var(--accent); background: #23332b; border-color: #415d4d; }
+[data-theme='dark'] :is(.app-shell, .d0-console) .pill.neutral { color: var(--muted); background: var(--surface2); border-color: var(--line); }
+[data-theme='dark'] :is(.app-shell, .d0-console) .pill.warning { color: var(--amber); background: #33291f; border-color: #5e4930; }
+[data-theme='dark'] :is(.pill.danger, .d0-console .broker-confirm, .app-shell .notice, .app-shell .inline-error) {
+  color: var(--red); background: #38232b; border-color: #68404f;
+}
+[data-theme='dark'] .app-shell :is(.raw-details pre, pre.json-view) { color: var(--muted); background: var(--surface2); }
+[data-theme='dark'] :is(.app-shell, .login-card, .d0-console) .button.primary { color: #161c19; background: #b8d5c3; border-color: #b8d5c3; }
+[data-theme='dark'] :is(.app-shell, .login-card, .d0-console) .button.primary:hover:not(:disabled) { background: #d4e8db; border-color: #d4e8db; }
+
 @media (min-width: 721px) {
   .app-shell .sidebar { width: var(--dashboard-shell-width); }
   .app-shell .main { margin-left: var(--dashboard-shell-width); width: calc(100% - var(--dashboard-shell-width)); }
