@@ -9,6 +9,10 @@
   const percentage = new Intl.NumberFormat('zh-CN', {style: 'percent', maximumFractionDigits: 2});
   let csrf = null;
   let verifiedAt = null;
+  let marketReady = false;
+  let brokerConnected = false;
+  let orderToken = null;
+  const clock = new Intl.DateTimeFormat('zh-CN', {timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short'});
 
   for (const symbol of symbols) {
     const row = byId('positions').insertRow();
@@ -43,19 +47,103 @@
     byId('signal').textContent = '正在读取…';
     try {
       const status = await call('/api/d0-control/status');
-      const ready = status.source_status === 'ready' && status.historical_seed === false;
-      const when = status.eligible_at ? ` · 最早可执行：${status.eligible_at}` : '';
-      byId('signal').textContent = (ready ? 'D0 来源已就绪，算单时仍会重新校验行情。' : '当前没有可用盘中资料；不会算单。') + when;
-      byId('inputs').disabled = !ready;
-      return ready;
+      const earliest = status.eligible_at ? new Date(status.eligible_at) : null;
+      const when = earliest && Number.isFinite(+earliest) ? ` 最早可执行：${clock.format(earliest)}（北京时间）。` : '';
+      marketReady = status.market_state === 'open' && !(earliest && +earliest > Date.now()) && status.source_status === 'ready' && status.historical_seed === false;
+      const closed = {closed: '当前为非连续交易时段。', unknown: '交易日历未覆盖当前日期。'};
+      byId('signal').textContent = (marketReady ? 'D0 行情已就绪；提交时会重新核对。' : closed[status.market_state] || (earliest && +earliest > Date.now() ? '信号尚未到执行时间。' : '交易时段内正在等待新鲜行情或确认信号。')) + when;
+      byId('inputs').disabled = !marketReady;
+      byId('broker-order-fields').disabled = !marketReady || !brokerConnected;
+      byId('broker').hidden = !status.live_orders_enabled;
+      byId('trading-mode').textContent = status.live_orders_enabled ? '手动实盘已启用 · 不自动下单' : '仅拟单 · 真实委托未启用';
+      if (status.live_orders_enabled) setBroker(await call('/api/d0-control/broker'));
+      return marketReady;
     } catch (error) {
       byId('signal').textContent = error.message;
+      marketReady = false;
       byId('inputs').disabled = true;
+      byId('broker-order-fields').disabled = true;
       return false;
     } finally {
       byId('refresh-signal').disabled = false;
     }
   }
+
+  function brokerCall(action, payload) {
+    return call(`/api/d0-control/broker/${action}`, {method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify(payload)});
+  }
+
+  function clearDraft() {
+    orderToken = null;
+    byId('broker-confirm').hidden = true;
+    byId('broker-phrase').value = '';
+  }
+
+  function setBroker(state) {
+    brokerConnected = state.connected === true;
+    byId('broker-connect').hidden = brokerConnected;
+    byId('broker-session').hidden = !brokerConnected;
+    byId('broker-order-fields').disabled = !brokerConnected || !marketReady;
+    const cash = state.available_cash == null ? '' : ` · 登录时可用 ${yuan.format(Number(state.available_cash))}`;
+    byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
+    if (!brokerConnected) clearDraft();
+  }
+
+  byId('broker-connect').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = event.submitter;
+    submit.disabled = true;
+    const password = byId('broker-password');
+    const payload = {username: byId('broker-account').value.trim(), password: password.value};
+    password.value = '';
+    byId('broker-status').textContent = '正在登录并只读核对…';
+    try { setBroker(await brokerCall('connect', payload)); }
+    catch (error) { byId('broker-status').textContent = error.message; }
+    finally { submit.disabled = false; }
+  });
+
+  byId('broker-disconnect').addEventListener('click', async (event) => {
+    event.currentTarget.disabled = true;
+    try { setBroker(await brokerCall('disconnect', {})); }
+    catch (error) { byId('broker-status').textContent = error.message; }
+    finally { byId('broker-disconnect').disabled = false; }
+  });
+
+  byId('broker-order').addEventListener('input', clearDraft);
+  byId('broker-order').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearDraft();
+    const submit = event.submitter;
+    submit.disabled = true;
+    try {
+      const draft = await brokerCall('draft', {symbol: byId('broker-symbol').value, side: byId('broker-side').value,
+        price: byId('broker-price').value, quantity: Number(byId('broker-quantity').value)});
+      orderToken = draft.order_token;
+      byId('broker-draft').textContent = `${names[draft.symbol]} ${draft.side === 'buy' ? '买入' : '卖出'} ${draft.quantity} 份 · 限价 ${draft.price} 元 · ${yuan.format(Number(draft.notional))}（不含费用）。${draft.expires_in} 秒内有效。`;
+      byId('broker-result').textContent = '';
+      byId('broker-confirm').hidden = false;
+    } catch (error) { byId('broker-result').textContent = error.message; }
+    finally { submit.disabled = false; }
+  });
+
+  byId('broker-confirm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!orderToken) return;
+    const payload = {order_token: orderToken, confirmation: byId('broker-phrase').value};
+    clearDraft();
+    byId('broker-order-fields').disabled = true;
+    byId('broker-result').textContent = '正在向券商提交，请勿重复操作…';
+    try {
+      const result = await brokerCall('submit', payload);
+      byId('broker-result').textContent = result.state === 'submitted'
+        ? `收到委托编号 ${result.broker_receipt}，不是成交确认。请在券商端核对。`
+        : '结果未能核实。不要重新提交，请到券商端核对委托和成交。';
+    } catch (error) {
+      byId('broker-result').textContent = `${error.message} 如未确认结果，先查券商，不要重发。`;
+    }
+    await refresh();
+  });
 
   function clearOrders(message) {
     byId('orders').replaceChildren();
@@ -137,7 +225,7 @@
       return;
     }
     csrf = session.csrf;
-    byId('notice').textContent = '已登录。此版本不会发出真实委托。';
+    byId('notice').textContent = '已登录简明 ETF。';
     byId('workspace').hidden = false;
     return refresh();
   }).catch((error) => { byId('notice').textContent = error.message; });
