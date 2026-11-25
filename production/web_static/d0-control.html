@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>D0 控制台 · 拟单</title>
+  <title>D0 控制台 · 东方财富证券</title>
   <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
   <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
+  <script src="/static/dashboard-theme.js?v=__UI_VERSION__" defer></script>
   <script defer src="/static/d0-control.js?v=__UI_VERSION__"></script>
   <style>
     body { margin: 0; }
@@ -22,11 +23,11 @@
 </head>
 <body class="d0-console">
   <main>
-    <nav aria-label="导航"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a></nav>
+    <nav aria-label="导航" class="console-nav"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a><button type="button" class="theme-toggle" data-theme-toggle aria-label="深色模式" aria-pressed="false">◐</button></nav>
     <header class="console-hero">
-      <span class="eyebrow">D0 / ORDER PREVIEW</span>
+      <span class="eyebrow">D0 / TRADING DESK</span>
       <h1>D0 控制台</h1>
-      <p class="pill neutral">仅拟单 · 真实交易未接通</p>
+      <p class="pill neutral" id="trading-mode">仅拟单 · 真实委托未启用</p>
       <p>按当前账户权益计算目标仓位，不固定使用 87 万元。D0 留现金时，拟单也保留现金。</p>
     </header>
     <p id="notice" role="status" aria-live="polite">正在检查登录状态…</p>
@@ -37,10 +38,42 @@
         <p id="signal" aria-live="polite">正在读取…</p>
         <button id="refresh-signal" type="button" class="button secondary">刷新 D0 状态</button>
       </section>
+      <section id="broker" class="panel control-panel" aria-labelledby="broker-title" hidden>
+        <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span class="pill danger">真实委托</span></div>
+        <p class="small muted">这里是独立的券商登录，不是网站登录。连接不会下单；连接最多保留 5 分钟。</p>
+        <form id="broker-connect" method="post" autocomplete="off">
+          <div class="control-fields">
+            <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
+            <label>证券交易密码<input id="broker-password" type="password" maxlength="128" required autocomplete="new-password"></label>
+          </div>
+          <button type="submit" class="button primary">登录东方财富证券</button>
+        </form>
+        <output id="broker-status" aria-live="polite">尚未连接。</output>
+        <div id="broker-session" hidden>
+          <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
+          <form id="broker-order" method="post" autocomplete="off">
+            <fieldset id="broker-order-fields" disabled>
+              <div class="control-fields">
+                <label>ETF<select id="broker-symbol" required><option value="sz159915">创业板 ETF 159915</option><option value="sh512800">银行 ETF 512800</option><option value="sh518880">黄金 ETF 518880</option><option value="sh511010">国债 ETF 511010</option></select></label>
+                <label>方向<select id="broker-side"><option value="buy">买入</option><option value="sell">卖出</option></select></label>
+                <label>限价（元）<input id="broker-price" type="number" min="0.001" step="0.001" required></label>
+                <label>份额（100 的倍数）<input id="broker-quantity" type="number" min="100" max="1000000" step="100" required></label>
+              </div>
+              <button type="submit" class="button secondary">核对真实委托</button>
+            </fieldset>
+          </form>
+          <form id="broker-confirm" method="post" autocomplete="off" class="broker-confirm" hidden>
+            <p id="broker-draft"></p>
+            <label>输入「确认实盘」<input id="broker-phrase" maxlength="8" required></label>
+            <button type="submit" class="button primary">提交给券商</button>
+          </form>
+          <output id="broker-result" aria-live="polite"></output>
+        </div>
+      </section>
       <div class="control-grid">
       <section class="panel control-panel" aria-labelledby="preview-title">
         <h2 id="preview-title">2. 核对资金和持仓</h2>
-        <p>以下数据只用于本次算单，不会保存。请从券商 App 核对；如无持仓，填写 0。暂不读取或要求任何证券账户、密码或验证码。</p>
+        <p>这里是独立的策略拟单，不向券商发送委托。请填写人工核对的资金和持仓；空仓填 0。</p>
         <form id="balances" autocomplete="off">
           <fieldset id="inputs" disabled>
             <div class="control-fields">
@@ -74,7 +107,7 @@
             <tbody id="orders"></tbody>
           </table>
         </div>
-        <p>拟单不等于委托。当前版本没有真实下单、撤单或自动启动入口。</p>
+        <p>拟单不等于委托。真实委托使用上方独立入口，本页不会将拟单自动提交。</p>
       </section>
       </div>
     </section>

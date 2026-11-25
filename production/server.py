@@ -17,6 +17,7 @@ import math
 import multiprocessing as mp
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 import queue
 import re
 import secrets
@@ -396,7 +397,7 @@ def frontend_release():
     """One release identity for HTML and its assets, computed at app startup."""
     folder = ROOT / "web_static"
     digest = hashlib.sha256()
-    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js", "d0-control.html", "d0-control.js", "dashboard.css"):
+    for name in ("index.html", "app.js", "style.css", "locale-en.js", "i18n.js", "company-research.js", "valuation-scenarios.js", "valuation-scenarios.css", "company-review.js", "company-review.css", "quality-checks.js", "quality-checks.css", "featured-strategies.js", "featured-strategies.css", "featured-research-data.js", "d0-control.html", "d0-control.js", "dashboard.css", "dashboard-theme.js"):
         digest.update(name.encode())
         digest.update((folder / name).read_bytes())
     for name in ("realtime-paper.js", "realtime-paper.css", "realtime-paper-comparison.js", "realtime-paper-comparison.css",
@@ -1413,6 +1414,15 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     auth_lock = threading.Lock()
     secure = os.environ.get("ETF_WEB_SECURE_COOKIE", "0") == "1"
     hosts = [h.strip() for h in os.environ.get("ETF_WEB_TRUSTED_HOSTS", "127.0.0.1,localhost,::1,testserver").split(",") if h.strip()]
+    d0_web = os.environ.get("ETF_D0_WEB_PREVIEW") == "1"
+    emtl_web = os.environ.get("ETF_EMTL_WEB_LIVE") == "1"
+    broker_origin = os.environ.get("ETF_EMTL_ORIGIN", "")
+    if emtl_web:
+        parsed = urlsplit(broker_origin)
+        if (not d0_web or not secure or parsed.scheme != "https" or parsed.hostname not in hosts
+                or parsed.username is not None or parsed.password is not None or parsed.path or parsed.query or parsed.fragment
+                or broker_origin != f"https://{parsed.netloc}"):
+            raise RuntimeError("EMTL 实盘要求私有 HTTPS、Secure Cookie、明确受信主机和 ETF_EMTL_ORIGIN")
 
     @asynccontextmanager
     async def lifespan(app):
@@ -1426,7 +1436,11 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         app.state.device_sessions = PersistentSessions(home, encoded)
         app.state.runtime = Runtime(home)
         interrupted = False
+        app.state.broker_desk = None
         try:
+            if emtl_web:
+                from emtl_live import BrokerDesk
+                app.state.broker_desk = BrokerDesk.from_env(home / "web" / "emtl-manual.sqlite3")
             app.state.realtime_paper = None
             try:
                 from realtime_paper_service import PaperService
@@ -1562,7 +1576,11 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             interrupted = True
             raise
         finally:
-            await shutdown_runtime(app.state.runtime, interrupted=interrupted)
+            try:
+                if app.state.broker_desk:
+                    await asyncio.to_thread(app.state.broker_desk.close)
+            finally:
+                await shutdown_runtime(app.state.runtime, interrupted=interrupted)
 
     ui_version, ui_html = frontend_release()
     app = FastAPI(title="简明ETF模拟交易", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -1702,6 +1720,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 raise HTTPException(503, "无法撤销设备登录状态，请稍后重试") from None
         with auth_lock:
             sessions.pop(token, None)
+        if app.state.broker_desk:
+            app.state.broker_desk.disconnect(hashlib.sha256(token.encode()).hexdigest())
         response = JSONResponse({"ok": True})
         response.delete_cookie("etf_session", httponly=True, secure=secure, samesite="strict")
         return response
@@ -1881,18 +1901,23 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             raise PaperApiError("PAPER_UNAVAILABLE", "D0 拟单资料暂不可用", 503)
         return read()
 
-    if os.environ.get("ETF_D0_WEB_PREVIEW") == "1":
+    if d0_web:
         @app.get("/d0-control")
         def d0_control_page():
             page = (ROOT / "web_static" / "d0-control.html").read_text("utf-8")
             return HTMLResponse(page.replace("__UI_VERSION__", ui_version), headers={"Cache-Control": "no-store"})
 
         @app.get("/api/d0-control/status")
-        def d0_control_status():
+        def d0_control_status(request: Request):
+            from realtime_paper_engine import TradingCalendar
+
             source = d0_order_preview_input()
             signal = source.get("signal") or {}
-            return {"mode": "preview_only", "live_orders_enabled": False, "strategy": "D0",
-                    "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
+            now = datetime.now(CN)
+            calendar = TradingCalendar()
+            return {"mode": "preview_only", "live_orders_enabled": emtl_web and str(request.base_url).rstrip("/") == broker_origin,
+                    "strategy": "D0", "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
+                    "market_state": "unknown" if calendar.is_session(now.date()) is None else "open" if calendar.segment(now) else "closed",
                     "execution_day": signal.get("execution_day"), "eligible_at": signal.get("eligible_at")}
 
         @app.post("/api/d0-control/preview")
@@ -1914,6 +1939,44 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             except (ValueError, ArithmeticError) as exc:
                 detail = str(exc) if isinstance(exc, ValueError) else "资金或行情计算异常"
                 raise PaperApiError("D0_PREVIEW_UNAVAILABLE", detail, 409) from None
+
+    if emtl_web:
+        def broker_access(request: Request):
+            if str(request.base_url).rstrip("/") != broker_origin or (request.method == "POST" and request.headers.get("origin") != broker_origin):
+                raise HTTPException(403, "请从已配置的私有 HTTPS 控制台访问券商交易。")
+            return app.state.broker_desk, hashlib.sha256(request.cookies["etf_session"].encode()).hexdigest()
+
+        @app.get("/api/d0-control/broker")
+        async def broker_status(request: Request):
+            desk, owner = broker_access(request)
+            return await asyncio.to_thread(desk.status, owner)
+
+        @app.post("/api/d0-control/broker/{action}")
+        async def broker_action(request: Request, action: str):
+            from emtl_live import LiveError
+
+            desk, owner = broker_access(request)
+            keys = {"connect": {"username", "password"}, "disconnect": set(),
+                    "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"}}
+            if action not in keys:
+                raise HTTPException(404, "不支持的券商操作")
+            try:
+                payload = await request.json()
+            except (ValueError, UnicodeError):
+                raise HTTPException(400, "券商操作格式无效") from None
+            if not isinstance(payload, dict) or set(payload) != keys[action]:
+                raise HTTPException(400, "券商操作字段不符")
+            try:
+                if action == "connect":
+                    return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"])
+                if action == "disconnect":
+                    return await asyncio.to_thread(desk.disconnect, owner)
+                operation = desk.draft_order if action == "draft" else desk.submit
+                return await asyncio.to_thread(operation, owner, payload, d0_order_preview_input)
+            except LiveError as exc:
+                raise HTTPException(409, str(exc)) from None
+            except sqlite3.Error:
+                raise HTTPException(503, "委托日志不可用，请先在券商端核对，勿重复提交。") from None
 
     @app.get("/api/live-trading/signal")
     async def live_trading_signal(request: Request):
@@ -2141,7 +2204,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
     @app.get("/")
     def index():
-        return HTMLResponse(ui_html)
+        control_link = '<a class="button secondary" href="/d0-control">D0 控制台</a>' if d0_web else ""
+        return HTMLResponse(ui_html.replace("__D0_CONTROL_LINK__", control_link))
 
     app.mount("/static", StaticFiles(directory=ROOT / "web_static", check_dir=False), name="static")
     return app

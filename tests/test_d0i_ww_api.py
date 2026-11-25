@@ -73,7 +73,7 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
         auth.chmod(0o600)
         self.d0, self.ww = SyntheticPaper('D0'), SyntheticPaper(WW)
         self.stack = ExitStack()
-        self.stack.enter_context(patch.dict(os.environ, {'ETF_WEB_PASSWORD_HASH': '', 'ETF_D0_WEB_PREVIEW': '0',
+        self.stack.enter_context(patch.dict(os.environ, {'ETF_WEB_PASSWORD_HASH': '', 'ETF_D0_WEB_PREVIEW': '0', 'ETF_EMTL_WEB_LIVE': '0',
             'ETF_WEB_SECURE_COOKIE': '1', 'ETF_WEB_TRUSTED_HOSTS': 'testserver'}))
         self.stack.enter_context(patch('server.Runtime', SyntheticRuntime))
         self.stack.enter_context(patch('server.shutdown_runtime', new_callable=AsyncMock))
@@ -133,6 +133,35 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                                          cookie=cookie, csrf=csrf, origin='https://testserver')
             self.assertEqual(status, 404)
             self.assertFalse(self.d0.actions)
+
+    async def test_emtl_web_requires_private_https_and_binds_to_website_session(self):
+        env = {'ETF_D0_WEB_PREVIEW': '1', 'ETF_EMTL_WEB_LIVE': '1', 'ETF_EMTL_ORIGIN': 'http://testserver'}
+        with patch.dict(os.environ, env), self.assertRaisesRegex(RuntimeError, 'HTTPS'):
+            create_app(self.home)
+        snapshot, _ = preview_inputs()
+        self.d0.order_preview_input = lambda: snapshot
+        desk = Mock()
+        desk.connect.return_value = {'connected': True, 'account_tail': '1234'}
+        with patch.dict(os.environ, {**env, 'ETF_EMTL_ORIGIN': 'https://testserver'}):
+            app = create_app(self.home, paper_factory=lambda _: self.d0, ww_paper_factory=lambda _: self.ww)
+        path = '/api/d0-control/broker/connect'
+        data = {'username': '000001234', 'password': 'test-password'}
+        with patch('emtl_live.BrokerDesk.from_env', return_value=desk):
+            async with app.router.lifespan_context(app):
+                status, _, _ = await request(app, path, method='POST', data=data)
+                self.assertEqual(status, 401)
+                _, headers, body = await request(app, '/api/login', method='POST', data={'password': self.password})
+                cookie, csrf = headers['set-cookie'].split(';', 1)[0], body['csrf']
+                status, _, _ = await request(app, path, method='POST', data=data, cookie=cookie, csrf=csrf)
+                self.assertEqual(status, 403)
+                desk.connect.assert_not_called()
+                status, _, body = await request(app, path, method='POST', data=data,
+                                                cookie=cookie, csrf=csrf, origin='https://testserver')
+                self.assertEqual((status, body['account_tail']), (200, '1234'))
+                owner, name, password = desk.connect.call_args.args
+                self.assertEqual(owner, hashlib.sha256(cookie.split('=', 1)[1].encode()).hexdigest())
+                self.assertEqual((name, password), (data['username'], data['password']))
+            desk.close.assert_called_once()
 
     async def test_default_and_ww_empty_snapshots_are_distinct_and_stopped(self):
         for code in ('D0', WW):

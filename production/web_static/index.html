@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#101714">
+  <meta name="theme-color" content="#f4f2ec">
   <title>简明 ETF · 模拟交易</title>
   <meta id="ui-version" name="app-version" content="__UI_VERSION__">
   <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
@@ -26,6 +26,7 @@
   <script src="/static/quality-checks.js?v=__UI_VERSION__" defer></script>
   <script src="/static/company-research.js?v=__UI_VERSION__" defer></script>
   <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
+  <script src="/static/dashboard-theme.js?v=__UI_VERSION__" defer></script>
 </head>
 <body>
   <aside id="update-notice" class="update-notice" role="status" hidden>
@@ -41,7 +42,7 @@
       <div class="login-points"><span>真实行情时刻</span><span>独立模拟账本</span><span>完整导出与恢复</span></div>
       <div class="decor-chart" aria-hidden="true"><svg viewBox="0 0 600 180"><path class="decor-grid" d="M0 40H600M0 90H600M0 140H600"/><path class="decor-line faint" d="M0 150L45 138L80 146L125 103L170 118L210 91L250 111L300 79L345 89L390 49L430 65L470 52L515 26L560 38L600 19"/><path class="decor-line" d="M0 166L45 160L80 132L125 137L170 118L210 129L250 87L300 95L345 61L390 76L430 51L470 68L515 38L560 47L600 12"/></svg><span>示意曲线 · 不代表策略实际收益</span></div>
     </div>
-    <div class="login-language"><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div>
+    <div class="login-language"><button type="button" class="theme-toggle" data-theme-toggle data-i18n-skip aria-label="深色模式" aria-pressed="false">◐</button><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label></div>
     <form id="login-form" class="login-card">
       <span class="eyebrow">欢迎回来</span><h2>进入你的工作台</h2>
       <p class="muted">输入访问密码，继续查看你的模拟记录。</p>
@@ -75,13 +76,13 @@
       <div class="sidebar-bottom"><span class="status-dot"></span> 仅模拟 · 无实盘下单<p>境内策略 + 纳指 / 恒生专区</p><button id="logout-button" class="text-button">退出登录</button></div>
     </aside>
     <main class="main">
-      <header class="topbar"><div><span class="eyebrow">PAPER TRADING</span><h1 id="page-title">市场总览</h1></div><div class="connection"><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label><span id="connection-dot" class="status-dot"></span><span id="connection-text">正在连接</span><button id="mobile-logout" class="text-button mobile-only" type="button">退出</button></div></header>
+      <header class="topbar"><div><span class="eyebrow">PAPER TRADING</span><h1 id="page-title">市场总览</h1></div><div class="connection"><button type="button" class="theme-toggle" data-theme-toggle data-i18n-skip aria-label="深色模式" aria-pressed="false">◐</button><label class="language-control" data-i18n-skip>中文 / EN <select data-language-switch aria-label="Language / 语言"><option value="zh">中文</option><option value="en">English</option></select></label><span id="connection-dot" class="status-dot"></span><span id="connection-text">正在连接</span><button id="mobile-logout" class="text-button mobile-only" type="button">退出</button></div></header>
       <div id="global-error" class="notice error-notice" role="alert" hidden><span id="global-error-text"></span><button id="dismiss-error" class="icon-button" aria-label="关闭错误提示">×</button></div>
 
       <section class="page" id="page-overview">
         <div class="dashboard-hero section-heading">
           <div><span class="eyebrow">MARKET DESK / 01</span><h2>行情有时间，判断有依据。</h2><p>报价、已确认 K 线与账户进度分别显示，避免把历史状态当成今天。</p></div>
-          <div class="button-row dashboard-hero-actions"><button type="button" class="button secondary" data-goto="realtime-paper">查看 D0 前瞻模拟</button><button id="refresh-market" class="button primary" type="button">↻ 刷新行情</button></div>
+          <div class="button-row dashboard-hero-actions"><button type="button" class="button secondary" data-goto="realtime-paper">查看 D0 前瞻模拟</button>__D0_CONTROL_LINK__<button id="refresh-market" class="button primary" type="button">↻ 刷新行情</button></div>
         </div>
         <div id="market-stats" class="metric-grid market-stats"></div>
         <div class="dashboard-grid">
