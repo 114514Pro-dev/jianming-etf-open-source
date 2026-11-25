@@ -4,7 +4,7 @@ from decimal import Decimal
 import re
 
 from d0_order_math import LOT, MAX_ORDER_QTY, SYMBOLS, commission, limit_price, target_quantity
-from realtime_paper_engine import D, TradingCalendar, dt
+from realtime_paper_engine import D, TradingCalendar, cash as format_cny, dt
 
 
 def _mapping(value):
@@ -136,6 +136,10 @@ def preview(snapshot, balances, *, now):
                 available -= quantity * limit + commission(quantity * limit, rate, minimum)
         stage = "buy" if orders else ("no_affordable_lot" if any(targets[s] > held[s] for s in SYMBOLS) else "at_target")
 
+    cash_weight = max(Decimal(0), 1 - sum(weights.values()))
+    allocation = {s: {"weight": str(w), "target_value": format_cny(equity * w)} for s, w in weights.items()}
+    allocation["cash"] = {"weight": str(cash_weight), "target_value": format_cny(equity * cash_weight)}
     return {"mode": "preview_only", "strategy": "D0", "signal_id": signal_id, "eligible_at": eligible.isoformat(),
             "stage": stage, "quote_received_at": received.isoformat(), "quote_receive_age_ms": round((now - received).total_seconds() * 1000),
+            "equity": format_cny(equity), "allocation": allocation,
             "targets": targets, "orders": orders, "sell_remainder": blocked}

@@ -46,6 +46,27 @@ class PreviewTests(unittest.TestCase):
                          [("sz159915", 500, "1.002"), ("sh512800", 400, "1.002")])
         self.assertEqual(result["quote_receive_age_ms"], 1000)
 
+    def test_50_percent_tracks_equity_and_subtracts_existing_position(self):
+        for equity, target in ((870000, 435000), (900000, 450000)):
+            with self.subTest(equity=equity):
+                snapshot, balances = inputs()
+                snapshot["signal"]["weights"] = {"sz159915": "0.5"}
+                balances.update(cash=equity, available_cash=equity)
+                self.assertEqual(emtl_d0.preview(snapshot, balances, now=NOW)["orders"][0]["quantity"], target)
+                balances.update(cash=equity - 300000, available_cash=equity - 300000)
+                balances["positions"]["sz159915"] = {"held": 300000, "sellable": 300000}
+                result = emtl_d0.preview(snapshot, balances, now=NOW)
+                self.assertEqual(result["equity"], f"{equity}.00")
+                self.assertEqual(result["allocation"]["sz159915"]["target_value"], f"{target}.00")
+                self.assertEqual(result["allocation"]["cash"]["target_value"], f"{target}.00")
+                self.assertEqual(result["orders"][0]["quantity"], target - 300000)
+        snapshot, balances = inputs()
+        snapshot["signal"]["weights"] = {"sz159915": "0.5"}
+        balances.update(cash=270000, available_cash=270000)
+        balances["positions"]["sz159915"] = {"held": 600000, "sellable": 600000}
+        self.assertEqual(emtl_d0.preview(snapshot, balances, now=NOW)["orders"],
+                         [{"symbol": "sz159915", "side": "sell", "quantity": 165000, "limit_price": "0.998"}])
+
     def test_sells_first_even_if_there_is_already_enough_cash(self):
         snapshot, balances = inputs()
         balances["positions"]["sh518880"] = {"held": 550, "sellable": 300}

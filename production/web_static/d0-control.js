@@ -5,6 +5,8 @@
   const form = byId('balances');
   const symbols = ['sz159915', 'sh512800', 'sh518880', 'sh511010'];
   const names = {sz159915: '创业板 ETF', sh512800: '银行 ETF', sh518880: '黄金 ETF', sh511010: '国债 ETF'};
+  const yuan = new Intl.NumberFormat('zh-CN', {style: 'currency', currency: 'CNY'});
+  const percentage = new Intl.NumberFormat('zh-CN', {style: 'percent', maximumFractionDigits: 2});
   let csrf = null;
   let verifiedAt = null;
 
@@ -58,7 +60,31 @@
   function clearOrders(message) {
     byId('orders').replaceChildren();
     byId('orders-table').hidden = true;
+    byId('allocation-bars').replaceChildren();
+    byId('allocation').hidden = true;
     byId('result').textContent = message;
+  }
+
+  function showAllocation(result) {
+    byId('allocation-equity').textContent = yuan.format(Number(result.equity));
+    for (const symbol of [...symbols, 'cash']) {
+      const row = document.createElement('div');
+      row.className = 'allocation-row';
+      const label = document.createElement('span');
+      label.textContent = names[symbol] || '目标现金';
+      const figure = document.createElement('span');
+      figure.className = 'allocation-number';
+      const {weight, target_value: value} = result.allocation[symbol];
+      const fraction = Number(weight);
+      figure.textContent = `${percentage.format(fraction)} · ${yuan.format(Number(value))}`;
+      const bar = document.createElement('progress');
+      bar.max = 1;
+      bar.value = fraction;
+      bar.setAttribute('aria-label', `${label.textContent}目标权重`);
+      row.append(label, figure, bar);
+      byId('allocation-bars').append(row);
+    }
+    byId('allocation').hidden = false;
   }
 
   form.addEventListener('input', (event) => {
@@ -84,6 +110,7 @@
       const stage = {sell_first: '先卖出，实际卖出后再核对资金', sell_blocked: '缺少可卖份额，暂不买入', buy: '买入拟单', no_affordable_lot: '可用资金不足一手', at_target: '暂无整手调仓拟单'};
       const remainder = result.sell_remainder.map((row) => `${row.symbol.slice(2)} 待卖 ${row.shares_not_in_preview} 份`).join('；');
       byId('result').textContent = `${stage[result.stage] || '生成拟单'} · 尚未委托${remainder ? ` · ${remainder}` : ''}`;
+      showAllocation(result);
       for (const order of result.orders) {
         const row = byId('orders').insertRow();
         for (const value of [order.symbol.slice(2), order.side === 'buy' ? '买入' : '卖出', order.quantity, order.limit_price]) row.insertCell().textContent = value;

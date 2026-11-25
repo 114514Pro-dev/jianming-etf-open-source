@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0a1220">
+  <meta name="theme-color" content="#101714">
   <title>简明 ETF · 模拟交易</title>
   <meta id="ui-version" name="app-version" content="__UI_VERSION__">
   <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
@@ -25,6 +25,7 @@
   <script src="/static/company-review.js?v=__UI_VERSION__" defer></script>
   <script src="/static/quality-checks.js?v=__UI_VERSION__" defer></script>
   <script src="/static/company-research.js?v=__UI_VERSION__" defer></script>
+  <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
 </head>
 <body>
   <aside id="update-notice" class="update-notice" role="status" hidden>
@@ -56,18 +57,20 @@
   <div id="app-shell" class="app-shell" hidden>
     <aside class="sidebar">
       <a class="brand" href="#overview" data-page="overview"><span class="brand-mark" aria-hidden="true">↗</span><span>简明 ETF<small>模拟交易工作台</small></span></a>
-      <div class="sidebar-caption">工作台</div>
       <nav aria-label="主导航">
+        <div class="sidebar-nav-heading">工作台</div>
         <button class="nav-item active" data-page="overview"><span aria-hidden="true">◈</span><span>市场总览</span></button>
-        <button class="nav-item" data-page="overseas"><span aria-hidden="true">◎</span><span>海外专区</span></button>
-        <button class="nav-item" data-page="featured"><span aria-hidden="true">☆</span><span>精选策略</span></button>
-        <button class="nav-item" data-page="signals"><span aria-hidden="true">⌁</span><span>策略信号</span></button>
-        <button class="nav-item" data-page="research"><span aria-hidden="true">◇</span><span>AI选公司</span></button>
-        <button class="nav-item" data-page="accounts"><span aria-hidden="true">▣</span><span>历史回放账户</span></button>
         <button class="nav-item" data-page="realtime-paper"><span aria-hidden="true">◷</span><span>D0 前瞻模拟</span></button>
-        <button class="nav-item" data-page="compare"><span aria-hidden="true">≋</span><span>策略比较</span></button>
+        <button class="nav-item" data-page="accounts"><span aria-hidden="true">▣</span><span>历史回放账户</span></button>
         <button class="nav-item" data-page="tasks"><span aria-hidden="true">◷</span><span>任务记录</span><span id="running-count" class="nav-count" hidden>0</span></button>
-        <a id="sector-research-entry" href="/sector-research/" style="display:block;padding:12px 14px;margin-top:8px;border-radius:10px;color:inherit;text-decoration:none;border:1px solid currentColor" data-i18n-skip>板块研究台 / Sector research ↗</a>
+        <div class="sidebar-nav-heading">策略研究</div>
+        <button class="nav-item" data-page="signals"><span aria-hidden="true">⌁</span><span>策略信号</span></button>
+        <button class="nav-item" data-page="featured"><span aria-hidden="true">☆</span><span>精选策略</span></button>
+        <button class="nav-item" data-page="compare"><span aria-hidden="true">≋</span><span>策略比较</span></button>
+        <div class="sidebar-nav-heading">市场与公司</div>
+        <button class="nav-item" data-page="overseas"><span aria-hidden="true">◎</span><span>海外专区</span></button>
+        <button class="nav-item" data-page="research"><span aria-hidden="true">◇</span><span>AI选公司</span></button>
+        <a id="sector-research-entry" class="sidebar-research-link" href="/sector-research/" data-i18n-skip>板块研究台 / Sector research ↗</a>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot"></span> 仅模拟 · 无实盘下单<p>境内策略 + 纳指 / 恒生专区</p><button id="logout-button" class="text-button">退出登录</button></div>
     </aside>
@@ -76,10 +79,15 @@
       <div id="global-error" class="notice error-notice" role="alert" hidden><span id="global-error-text"></span><button id="dismiss-error" class="icon-button" aria-label="关闭错误提示">×</button></div>
 
       <section class="page" id="page-overview">
-        <div class="section-heading"><div><h2>行情有时间，判断有依据。</h2><p>报价、已确认 K 线与账户进度分别显示，避免把历史状态当成今天。</p></div><button id="refresh-market" class="button primary">↻ 刷新行情</button></div>
+        <div class="dashboard-hero section-heading">
+          <div><span class="eyebrow">MARKET DESK / 01</span><h2>行情有时间，判断有依据。</h2><p>报价、已确认 K 线与账户进度分别显示，避免把历史状态当成今天。</p></div>
+          <div class="button-row dashboard-hero-actions"><button type="button" class="button secondary" data-goto="realtime-paper">查看 D0 前瞻模拟</button><button id="refresh-market" class="button primary" type="button">↻ 刷新行情</button></div>
+        </div>
         <div id="market-stats" class="metric-grid market-stats"></div>
+        <div class="dashboard-grid">
+          <div class="panel dashboard-market"><div class="panel-heading"><div><span class="eyebrow">市场快照</span><h3>关注的 ETF</h3></div><span class="pill">来源报价 · 非成交价</span></div><p id="quote-session-note" class="quote-session-note small muted"></p><div id="quotes-area"></div><div id="market-warnings" class="notes"></div></div>
         <div class="panel automation-panel"><div class="panel-heading"><div><span class="eyebrow">服务器后台运行</span><h3>关闭网页，也继续跟踪</h3></div><span id="market-session" class="pill neutral">正在读取状态</span></div><div class="automation-switches"><label class="automation-switch"><input id="auto-refresh" type="checkbox" disabled><span><strong>行情与策略参考自动更新</strong><small id="refresh-frequency">正在读取更新频率…</small></span></label><label class="automation-switch"><input id="auto-simulate" type="checkbox" disabled><span><strong>全部账户自动模拟</strong><small>按原策略已确认周期推进，可逐账户暂停</small></span></label></div><div class="automation-timing"><span id="refresh-countdown">正在读取更新设置…</span><span id="history-countdown"></span></div><p id="automation-summary" class="small muted">正在读取后台状态…</p><p class="small muted">两个开关独立：暂停行情更新后仍可按已有确认行情模拟；暂停自动模拟后仍可更新行情与参考。间隔是正常运行目标；长区间模拟或比较时可能延后，报价也可能有来源延迟。</p><p id="automation-error" class="inline-error" role="alert" hidden></p><details class="raw-details"><summary>查看后台运行结果</summary><pre id="automation-details"></pre></details></div>
-        <div class="panel"><div class="panel-heading"><div><span class="eyebrow">市场快照</span><h3>关注的 ETF</h3></div><span class="pill">来源报价 · 非成交价</span></div><p id="quote-session-note" class="quote-session-note small muted"></p><div id="quotes-area"></div><div id="market-warnings" class="notes"></div></div>
+        </div>
         <div id="confirmed-signals" class="panel" hidden></div>
         <div class="panel reference-panel"><div class="panel-heading"><div><span class="eyebrow">策略参考</span><h3>这笔预算，策略怎样分配？</h3></div></div>
           <form id="reference-form" class="form-row"><label>策略组<select id="reference-group"></select></label><label class="grow">参考策略<select id="reference-strategy"></select></label><label>独立参考本金 / 元<input id="reference-capital" type="number" min="1000" max="10000000000" step="any" value="100000" required></label><button type="submit" class="button primary">计算参考</button></form>

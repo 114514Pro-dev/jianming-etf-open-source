@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>D0 控制台 · 拟单</title>
   <link rel="stylesheet" href="/static/style.css?v=__UI_VERSION__">
+  <link rel="stylesheet" href="/static/dashboard.css?v=__UI_VERSION__">
   <script defer src="/static/d0-control.js?v=__UI_VERSION__"></script>
   <style>
     body { margin: 0; }
@@ -19,12 +20,15 @@
     output { display: block; margin: .75rem 0; }
   </style>
 </head>
-<body>
+<body class="d0-console">
   <main>
     <nav aria-label="导航"><a href="/#realtime-paper">返回简明 ETF · D0 模拟盘</a></nav>
-    <h1>D0 控制台</h1>
-    <p class="pill neutral">仅拟单 · 真实交易未接通</p>
-    <p>资金口径：计划用整户跟随原版 D0，约 87 万元是参考，不会预填为可用资金。D0 持有现金时，拟单也保留现金。</p>
+    <header class="console-hero">
+      <span class="eyebrow">D0 / ORDER PREVIEW</span>
+      <h1>D0 控制台</h1>
+      <p class="pill neutral">仅拟单 · 真实交易未接通</p>
+      <p>按当前账户权益计算目标仓位，不固定使用 87 万元。D0 留现金时，拟单也保留现金。</p>
+    </header>
     <p id="notice" role="status" aria-live="polite">正在检查登录状态…</p>
     <p id="login" hidden><a href="/" class="button secondary">先登录简明 ETF</a>，再打开本页。</p>
     <section id="workspace" hidden>
@@ -33,6 +37,7 @@
         <p id="signal" aria-live="polite">正在读取…</p>
         <button id="refresh-signal" type="button" class="button secondary">刷新 D0 状态</button>
       </section>
+      <div class="control-grid">
       <section class="panel control-panel" aria-labelledby="preview-title">
         <h2 id="preview-title">2. 核对资金和持仓</h2>
         <p>以下数据只用于本次算单，不会保存。请从券商 App 核对；如无持仓，填写 0。暂不读取或要求任何证券账户、密码或验证码。</p>
@@ -55,14 +60,23 @@
         </form>
       </section>
       <section class="panel control-panel" aria-labelledby="orders-title">
-        <h2 id="orders-title">3. 看拟单</h2>
+        <h2 id="orders-title">3. 看目标配置与拟单</h2>
         <output id="result" aria-live="polite">尚未生成拟单。</output>
-        <table class="control-table" id="orders-table" hidden>
-          <thead><tr><th scope="col">ETF</th><th scope="col">方向</th><th scope="col">数量</th><th scope="col">限价</th></tr></thead>
-          <tbody id="orders"></tbody>
-        </table>
+        <section id="allocation" class="allocation-chart" aria-labelledby="allocation-title" hidden>
+          <h3 id="allocation-title">目标配置</h3>
+          <p>计算权益：<strong id="allocation-equity" class="allocation-balance allocation-number"></strong></p>
+          <div id="allocation-bars"></div>
+          <p class="small muted">目标金额未按整手取整，不等于实际委托金额。</p>
+        </section>
+        <div class="control-scroll">
+          <table class="control-table" id="orders-table" hidden>
+            <thead><tr><th scope="col">ETF</th><th scope="col">方向</th><th scope="col">数量</th><th scope="col">限价</th></tr></thead>
+            <tbody id="orders"></tbody>
+          </table>
+        </div>
         <p>拟单不等于委托。当前版本没有真实下单、撤单或自动启动入口。</p>
       </section>
+      </div>
     </section>
   </main>
 </body>
