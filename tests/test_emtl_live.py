@@ -285,6 +285,42 @@ class ManualEmtlTests(unittest.TestCase):
         self.assertFalse(self.desk.status(owner)['connected'])
         self.assertFalse(self.broker.sent)
 
+    def test_diagnostics_are_read_only_and_return_only_explicit_financial_fields(self):
+        owner = 'browser-one'
+        self.desk.stop_live(owner)
+        assets = self.broker.query_asset_and_position()
+        assets['Data'][0].update(Zzc='2100.55', TotalAssets='invalid', MarketValue='100', account='SECRET_ACCOUNT')
+        self.broker.query_asset_and_position = lambda: assets
+        self.broker.orders = [{'Wtrq': '20261124', 'Wtbh': '123', 'Zqdm': '512800', 'Wtzt': '已成', 'Wtsl': '100', 'Cjsl': '100',
+                               'account': 'SENSITIVE_ORDER_FIELD'}]
+        with self.assertRaises(LiveError):
+            self.desk.diagnose('someone-else', '123', lambda: True)
+        self.assertIsNone(self.desk.diagnose(owner, '', lambda: True)['order'])
+        result = self.desk.diagnose(owner, '123', lambda: True)
+        self.assertEqual(result['equity_candidates'], [{'field': 'Zzc', 'amount_cny': '2100.55'}])
+        self.assertEqual(result['available_cash_cny'], '2000')
+        self.assertEqual(result['order'], {'state': 'found', 'status': '已成', 'submitted_shares': 100,
+                                          'filled_shares': 100, 'full_fill_candidate': True})
+        self.assertNotIn('SECRET_ACCOUNT', str(result))
+        self.assertNotIn('SENSITIVE_ORDER_FIELD', str(result))
+        self.assertFalse(self.desk.status(owner)['orders_armed'])
+        self.assertFalse(self.desk.auto.active)
+        self.assertFalse(self.broker.sent)
+
+    def test_diagnostics_reject_ambiguous_orders_and_do_not_assume_fills(self):
+        owner = 'browser-one'
+        order = {'Wtrq': '20261124', 'Wtbh': '123', 'Wtzt': 'unknown raw state', 'Wtsl': '100', 'Cjsl': '200'}
+        self.broker.orders = [order]
+        info = self.desk.diagnose(owner, '123', lambda: True)['order']
+        self.assertIsNone(info['status'])
+        self.assertIsNone(info['filled_shares'])
+        self.assertFalse(info['full_fill_candidate'])
+        self.broker.orders.append(order.copy())
+        self.assertEqual(self.desk.diagnose(owner, '123', lambda: True)['order'], {'state': 'unavailable'})
+        access = iter((True, False))
+        with self.assertRaisesRegex(LiveError, '未返回核对结果'):
+            self.desk.diagnose(owner, '', lambda: next(access))
+
     def test_unbind_refuses_environment_pinned_account(self):
         self.assertFalse(self.desk.status('browser-one')['can_unbind'])
         with self.assertRaisesRegex(LiveError, '固定配置'):

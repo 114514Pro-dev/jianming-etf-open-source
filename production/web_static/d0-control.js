@@ -19,6 +19,8 @@
   let autoToken = null;
   let autoActive = false;
   let autoTimer = null;
+  let diagnosticsRequest = 0;
+  let diagnosticsToken = null;
   let syncTimer = null;
   let syncRequest = 0;
   let syncNetwork = false;
@@ -202,17 +204,20 @@
     liveOrders = ordersConfigured && liveActive && state.orders_armed === true;
     autoActive = brokerConnected && state.auto?.active === true;
     const badge = byId('broker-badge');
-    const mode = autoActive ? `${state.auto.strategy} 自动实盘` : '手动实盘';
-    if (brokerAvailable) badge.textContent = liveOrders ? mode : !accountBound ? '待首次授权' : '网页仅只读核对';
-    badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
-    byId('trading-mode').textContent = autoActive ? `${mode}已启用 · 可停止` : liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
+    const autoArmed = brokerConnected && state.auto?.armed === true;
+    const mode = autoActive ? `${state.auto.strategy} 自动实盘运行中` : autoArmed ? '自动实盘已授权 · 未启动' : '手动实盘';
+    if (brokerAvailable) badge.textContent = liveOrders || autoArmed ? mode : !accountBound ? '待首次授权' : '网页仅只读核对';
+    badge.className = `pill ${liveOrders || autoArmed ? 'danger' : 'neutral'}`;
+    byId('trading-mode').textContent = autoArmed ? mode : liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders || autoActive;
     if (autoActive) clearDraft();
+    byId('broker-diagnostics-panel').hidden = autoActive;
+    if (autoActive) clearDiagnostics();
     setAuto(state.auto);
-    byId('broker-live').hidden = !brokerConnected || liveActive;
-    byId('broker-arm').hidden = !liveActive || !ordersConfigured || liveOrders;
+    byId('broker-live').hidden = !brokerConnected || liveActive || autoArmed;
+    byId('broker-arm').hidden = !liveActive || !ordersConfigured || liveOrders || autoArmed;
     byId('broker-stop').hidden = !liveActive;
-    byId('broker-control-state').textContent = autoActive ? '自动委托运行中，暂不允许手动发单。' : liveOrders ? '已允许手动委托。每笔订单仍须确认。'
+    byId('broker-control-state').textContent = autoArmed ? '自动模式已授权；停止自动实盘后才能开启手动委托。' : liveOrders ? '已允许手动委托。每笔订单仍须确认。'
       : !liveActive ? '默认只读。开启实盘不会下单。'
       : ordersConfigured ? '实盘已开启，仍未授权真实委托。' : '实盘已开启，此部署尚未开放真实委托权限。';
     if (!liveOrders) clearDraft();
@@ -241,6 +246,7 @@
     const cash = state.available_cash == null ? '' : ` · 登录时可用 ${yuan.format(Number(state.available_cash))}`;
     byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
     if (!brokerConnected) {
+      clearDiagnostics();
       clearDraft();
       byId('broker-result').textContent = '';
       byId('broker-arm-account').value = '';
@@ -253,6 +259,95 @@
     }
   }
 
+  function clearDiagnostics() {
+    ++diagnosticsRequest;
+    byId('broker-diagnostics-result').replaceChildren();
+    byId('broker-diagnostics-receipt').value = '';
+    diagnosticsToken = null;
+    byId('broker-field-verify').hidden = true;
+    byId('broker-field-verify').reset();
+    byId('broker-field-result').textContent = '';
+  }
+
+  window.addEventListener('pagehide', clearDiagnostics);
+  byId('broker-diagnostics-panel').addEventListener('toggle', (event) => {
+    if (!event.currentTarget.open) clearDiagnostics();
+  });
+  byId('broker-diagnostics').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!brokerConnected || autoActive) return;
+    const receipt = byId('broker-diagnostics-receipt').value.trim();
+    clearDiagnostics();
+    const query = diagnosticsRequest;
+    const output = byId('broker-diagnostics-result');
+    const button = event.submitter;
+    button.disabled = true;
+    output.textContent = '正在只读查询券商…';
+    try {
+      const result = await brokerCall('diagnostics', {receipt});
+      if (query !== diagnosticsRequest || !brokerConnected || autoActive) return;
+      output.replaceChildren();
+      const row = (text) => {
+        const p = document.createElement('p');
+        p.textContent = text;
+        output.append(p);
+      };
+      const sampled = new Date(result.observed_at);
+      if (Number.isFinite(+sampled)) row(`查询时间：${clock.format(sampled)}（北京时间）`);
+      row(`可用资金：${yuan.format(Number(result.available_cash_cny))}（不是总资产）`);
+      if (result.equity_candidates.length) {
+        for (const {field, amount_cny} of result.equity_candidates) row(`总资产候选 ${field}：${yuan.format(Number(amount_cny))}`);
+        row('候选字段不会自动采纳；请与官方客户端的总资产核对。');
+      } else row('未识别到受支持的总资产候选字段，不能据此开放自动委托。');
+      if (result.order?.state === 'found') {
+        row(`当日委托：${result.order.status ?? '状态未知'}；委托份额 Wtsl：${result.order.submitted_shares ?? '未核实'}；实际成交 Cjsl：${result.order.filled_shares ?? '未核实'}。`);
+        row(result.order.full_fill_candidate ? '这是整笔成交候选样本，请与官方客户端核对。' : '不是可用的整笔成交样本。');
+      } else if (receipt) row('未找到唯一、完整的当日委托记录。请核对委托编号，或选一笔当日已成交的委托。');
+      else row('未填写委托编号，本次只核对资金字段。');
+      if (result.verification_token) {
+        diagnosticsToken = result.verification_token;
+        byId('broker-field-name').replaceChildren(...result.verifiable_fields.map(field => new Option(field, field)));
+        byId('broker-field-verify').hidden = false;
+      }
+    } catch (error) {
+      if (query === diagnosticsRequest) output.textContent = error.message;
+    } finally { button.disabled = false; }
+  });
+
+  byId('broker-field-verify').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!diagnosticsToken) return;
+    const query = diagnosticsRequest;
+    const button = event.submitter;
+    const result = byId('broker-field-result');
+    button.disabled = true;
+    try {
+      const state = await brokerCall('auto-verify', {
+        token: diagnosticsToken, field: byId('broker-field-name').value,
+        total_cny: byId('broker-field-total').value.trim(), filled_shares: byId('broker-field-filled').value.trim(),
+        confirmation: byId('broker-field-phrase').value.trim(),
+      });
+      clearDiagnostics();
+      byId('broker-diagnostics-panel').open = false;
+      setBroker(state);
+    } catch (error) { if (query === diagnosticsRequest) result.textContent = error.message; }
+    finally { button.disabled = false; }
+  });
+
+  byId('broker-auto-arm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const passwordInput = byId('broker-auto-password');
+    const payload = {username: byId('broker-auto-account').value.trim(), password: passwordInput.value,
+      confirmation: byId('broker-auto-arm-phrase').value.trim()};
+    event.currentTarget.reset();
+    const button = event.submitter;
+    button.disabled = true;
+    clearAutoPlan();
+    try { setBroker(await brokerCall('auto-arm', payload)); }
+    catch (error) { byId('broker-auto-result').textContent = error.message; }
+    finally { button.disabled = false; }
+  });
+
   function clearAutoPlan(clearResult = true) {
     autoToken = null;
     byId('broker-auto-start').hidden = true;
@@ -264,8 +359,12 @@
     clearTimeout(autoTimer);
     const configured = brokerConnected && state?.configured === true;
     byId('broker-auto-preview').hidden = !configured || autoActive;
-    byId('broker-auto-stop').hidden = !autoActive;
-    byId('broker-auto-state').textContent = !configured ? '未开放：须先核实券商总资产字段。'
+    byId('broker-auto-stop').hidden = !(autoActive || state?.armed);
+    byId('broker-auto-arm').hidden = !brokerConnected || !state?.verified || !state?.enabled || state.armed || autoActive;
+    if (byId('broker-auto-arm').hidden) byId('broker-auto-arm').reset();
+    byId('broker-auto-state').textContent = !state?.verified ? '完成下方只读字段核对后，可在网页单独授权自动实盘。'
+      : !state.enabled ? '字段已核对；站点交易权限关闭。'
+      : !state.armed && !autoActive ? '字段已核对；自动实盘未授权。'
       : `${state.strategy ? `${state.strategy} · ` : ''}${state.message} 周期上限 ¥${state.budget_cny}。`;
     if (!brokerConnected || autoActive) clearAutoPlan(!brokerConnected);
     if (autoActive) autoTimer = setTimeout(async () => {
@@ -287,7 +386,7 @@
       if (strategy !== select.value || !brokerConnected) return;
       const summary = plan.orders.map(row => `${row.side === 'sell' ? '卖' : '买'} ${names[row.symbol]} ${row.quantity} 份，限价 ${row.price_limit} 元`).join('；');
       output.textContent = `${strategy} · ${summary || '无待调仓'} · 保留现金 ¥${Number(plan.cash_reserve_cny).toFixed(2)}。${plan.message}`;
-      if (plan.token && plan.auto_enabled && liveOrders && !autoActive) {
+      if (plan.token && plan.auto_enabled && !autoActive) {
         autoToken = plan.token;
         byId('broker-auto-start').hidden = false;
       }

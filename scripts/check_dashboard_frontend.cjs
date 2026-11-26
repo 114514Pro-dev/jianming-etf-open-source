@@ -88,14 +88,25 @@ async function run() {
         if (url.pathname === `${prefix}/broker/live`) liveActive = true;
         if (url.pathname === `${prefix}/broker/arm`) ordersArmed = true;
         if (url.pathname === `${prefix}/broker/stop`) ordersArmed = liveActive = false;
-        const brokerActions = ['', '/connect', '/enroll', '/live', '/arm', '/stop'];
+        if (url.pathname === `${prefix}/broker/diagnostics`) return route.fulfill({json: {
+          observed_at: '2026-11-24T10:00:00+08:00', available_cash_cny: '2000',
+          equity_candidates: [{field: 'Zzc', amount_cny: '2300'}],
+          order: {state: 'found', status: '已成', submitted_shares: 100, filled_shares: 100, full_fill_candidate: true},
+          verification_token: 'fixture-proof', verifiable_fields: ['Zzc'],
+        }});
+        if (url.pathname === `${prefix}/broker/auto-verify`) auto = {...auto, verified: true, configured: true};
+        if (url.pathname === `${prefix}/broker/auto-arm`) {
+          ordersArmed = liveActive = false;
+          auto = {...auto, armed: true};
+        }
+        const brokerActions = ['', '/connect', '/enroll', '/live', '/arm', '/stop', '/auto-verify', '/auto-arm'];
         if (brokerActions.some(action => url.pathname === `${prefix}/broker${action}`))
           return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234',
             limits, live_active: liveActive, orders_armed: ordersArmed, auto}});
         if (url.pathname === `${prefix}/broker/auto-preview`) {
           const {strategy} = request.postDataJSON();
           auto = {...auto, strategy};
-          return route.fulfill({json: {strategy, token: `fixture-${strategy}`, auto_enabled: true, cash_reserve_cny: '1000',
+          return route.fulfill({json: {strategy, token: `fixture-${strategy}`, auto_enabled: !!auto.armed, cash_reserve_cny: '1000',
             message: '仅预演，未发单。', orders: [{symbol: 'sz159915', side: 'buy', quantity: 100, price_limit: '1.001'}]}});
         }
         if (url.pathname === `${prefix}/broker/auto-start`) {
@@ -103,7 +114,7 @@ async function run() {
           return route.fulfill({json: auto});
         }
         if (url.pathname === `${prefix}/broker/auto-stop`) {
-          auto = {...auto, active: false, strategy: null, message: '自动委托已停止'};
+          auto = {...auto, active: false, armed: false, strategy: null, message: '自动委托已停止'};
           return route.fulfill({json: auto});
         }
         if (url.pathname === `${prefix}/broker/unbind`) {
@@ -261,6 +272,24 @@ async function run() {
       marketState = 'open';
       await page.locator('#refresh-signal').click();
       await page.locator('#broker-order button:enabled').waitFor();
+      assert.equal(await page.locator('#broker-auto-arm').isVisible(), false);
+      await page.getByText('只读字段核对', {exact: true}).click();
+      await page.locator('#broker-diagnostics-receipt').fill('209');
+      await page.getByRole('button', {name: '读取核对字段'}).click();
+      await page.getByText(/实际成交 Cjsl：100/).waitFor();
+      await page.locator('#broker-field-total').fill('2300');
+      await page.locator('#broker-field-filled').fill('100');
+      await page.locator('#broker-field-phrase').fill('已与官方客户端核对');
+      await page.getByRole('button', {name: '确认只读字段'}).click();
+      await page.locator('#broker-auto-arm').waitFor();
+      assert.equal(await page.locator('#broker-auto-start').isVisible(), false);
+      await page.locator('#broker-auto-account').fill('000001234');
+      await page.locator('#broker-auto-password').fill('synthetic-password');
+      await page.locator('#broker-auto-arm-phrase').fill('授权自动实盘');
+      await page.getByRole('button', {name: '授权自动实盘', exact: true}).click();
+      await page.locator('#trading-mode').getByText('自动实盘已授权 · 未启动').waitFor();
+      assert.equal(await page.locator('#broker-auto-password').inputValue(), '');
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
       await page.locator('#broker-auto-strategy').selectOption('D0');
       await page.getByRole('button', {name: '预演自动委托'}).click();
       await page.locator('#broker-auto-start').waitFor();
@@ -271,9 +300,17 @@ async function run() {
       assert.equal(writes.filter(([path]) => path.endsWith('/auto-start')).length, 0);
       await page.locator('#broker-auto-phrase').fill('确认自动委托');
       await page.getByRole('button', {name: '开启所选策略自动委托'}).click();
-      await page.getByText('F0 自动实盘已启用 · 可停止').waitFor();
+      await page.locator('#trading-mode').getByText('F0 自动实盘运行中').waitFor();
       assert.equal(await page.locator('#broker-order').isVisible(), false);
       await page.getByRole('button', {name: '停止自动委托', exact: true}).click();
+      await page.locator('#broker-auto-arm').waitFor();
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      await page.locator('#broker-live-phrase').fill('开启实盘');
+      await page.getByRole('button', {name: '开启实盘', exact: true}).click();
+      await page.locator('#broker-arm-account').fill('000001234');
+      await page.locator('#broker-arm-password').fill('synthetic-password');
+      await page.locator('#broker-arm-phrase').fill('允许真实委托');
+      await page.getByRole('button', {name: '开启真实委托', exact: true}).click();
       await page.locator('#broker-order button:enabled').waitFor();
       assert.equal(writes.filter(([path]) => path.endsWith('/submit')).length, 0);
       await page.locator('#broker-price').fill('1.001');

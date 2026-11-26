@@ -8,7 +8,7 @@ from unittest.mock import patch
 from test_emtl_d0 import NOW, inputs
 from test_emtl_live import Broker, arm
 from emtl_auto import AUTO_CONFIRMATION
-from emtl_live import BrokerDesk, LiveError
+from emtl_live import AUTO_ARM_CONFIRMATION, FIELD_CONFIRMATION, BrokerDesk, LiveError
 
 
 class Account(Broker):
@@ -49,7 +49,23 @@ class AutoTests(unittest.TestCase):
                                auto_cap=auto_cap, equity_field='VERIFIED_FIXTURE_EQUITY', now=lambda: NOW)
         self.addCleanup(self.desk.close)
         self.desk.connect(self.owner, self.account, 'test', valid_session=lambda: self.website)
-        arm(self.desk, self.owner, self.account, 'test')
+        if auto_cap:
+            self.verify_fields()
+            self.arm_auto()
+
+    def verify_fields(self):
+        self.fill('512800', '209', 100)
+        data = self.desk.diagnose(self.owner, '209', lambda: self.allowed)
+        self.broker.orders.clear()
+        return self.desk.verify_diagnostics(self.owner, {
+            'token': data['verification_token'], 'field': 'VERIFIED_FIXTURE_EQUITY', 'total_cny': '2000.00',
+            'filled_shares': '100', 'confirmation': FIELD_CONFIRMATION,
+        }, lambda: self.allowed)
+
+    def arm_auto(self):
+        self.desk.next_login = 0
+        return self.desk.arm_auto(self.owner, {'username': self.account, 'password': 'test',
+                                               'confirmation': AUTO_ARM_CONFIRMATION}, lambda: self.allowed)
 
     def preview(self, strategy='D0'):
         return self.desk.auto.preview(self.owner, strategy, self.sources.__getitem__)
@@ -72,7 +88,7 @@ class AutoTests(unittest.TestCase):
         plan = self.start('F0')
         self.assertEqual([o['side'] for o in plan['orders']], ['sell', 'buy'])
         self.assertFalse(self.broker.sent)
-        with self.assertRaisesRegex(LiveError, '自动委托运行中'):
+        with self.assertRaisesRegex(LiveError, '手动或自动模式'):
             self.desk.draft_order(self.owner, {'symbol': 'sz159915', 'side': 'buy', 'price': '1.001', 'quantity': 100},
                                   lambda: self.d0)
         self.tick()
@@ -103,6 +119,7 @@ class AutoTests(unittest.TestCase):
         self.assertFalse(self.broker.sent)
         self.assertFalse(self.desk.auto.active)
         self.allowed = True
+        self.arm_auto()
         self.start()
         self.broker.response = RuntimeError('BROKER_ERROR_NOT_FOR_BROWSER')
         self.tick()
@@ -148,6 +165,42 @@ class AutoTests(unittest.TestCase):
         with self.assertRaisesRegex(LiveError, '有效执行信号'):
             self.sources['F0'] = self.d0
             self.preview('F0')
+
+    def test_proof_needs_matching_values_and_exact_pairing_lease(self):
+        self.desk.auto.stop()
+        self.fill('512800', '209', 100)
+        access = [True]
+        result = self.desk.diagnose(self.owner, '209', lambda: access[0])
+        fields = {'token': result['verification_token'], 'field': 'VERIFIED_FIXTURE_EQUITY', 'total_cny': '2000',
+                  'filled_shares': '100', 'confirmation': FIELD_CONFIRMATION}
+        for change in ({'total_cny': '1900'}, {'filled_shares': '99'}, {'field': 'Kyzj'}, {'confirmation': 'OK'}):
+            with self.assertRaisesRegex(LiveError, '不一致'):
+                self.desk.verify_diagnostics(self.owner, {**fields, **change}, lambda: True)
+        access[0] = False
+        with self.assertRaisesRegex(LiveError, '样本已失效'):
+            self.desk.verify_diagnostics(self.owner, fields, lambda: True)
+        access[0] = True
+        self.assertTrue(self.desk.verify_diagnostics(self.owner, fields, lambda: True)['auto']['verified'])
+        with self.assertRaisesRegex(LiveError, '样本已失效'):
+            self.desk.verify_diagnostics(self.owner, fields, lambda: True)
+        self.desk.close()
+        self.create(auto_cap=False)
+        state = self.desk.status(self.owner)['auto']
+        self.assertTrue(state['verified'])
+        self.assertFalse(state['armed'])
+
+    def test_manual_authorization_does_not_authorize_auto_and_auto_does_not_enable_manual(self):
+        self.assertTrue(self.desk.status(self.owner)['auto']['armed'])
+        self.assertFalse(self.desk.status(self.owner)['orders_armed'])
+        self.desk.auto.stop()
+        arm(self.desk, self.owner, self.account, 'test')
+        self.assertFalse(self.preview()['auto_enabled'])
+        with self.assertRaisesRegex(LiveError, '授权对应的手动或自动模式'):
+            self.start()
+        self.assertTrue(self.arm_auto()['auto']['armed'])
+        self.assertFalse(self.desk.status(self.owner)['orders_armed'])
+        self.assertFalse(self.desk.auto.active)
+        self.assertFalse(self.broker.sent)
 
     def test_no_site_timer_does_not_bypass_website_revocation(self):
         with patch('emtl_live.time.monotonic', return_value=2**40):

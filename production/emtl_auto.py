@@ -47,13 +47,17 @@ class AutoOrders:
 
     def status(self):
         return {"enabled": self.enabled, "configured": bool(self.equity_field), "active": self.active,
+                "verified": bool(self.desk.verified_equity_field), "armed": self.desk.auto_armed,
                 "strategy": self.plan.strategy if self.plan else None, "message": self.note,
                 "budget_cny": str(self.budget), "sent_cny": str(self.used)}
 
     def stop(self, note="自动委托已停止；已送达券商的委托不会撤销。"):
         self.plan = self.read = self.access = self.pending = None
         self.active = False
-        self.desk.draft = None
+        if self.desk.auto_armed:
+            self.desk.draft = None
+        self.desk.auto_armed = False
+        self.desk.auto_arm_scope = None
         self.note = note
         return self.status()
 
@@ -111,7 +115,7 @@ class AutoOrders:
                     targets, held, reserve, price_limits)
         self.plan = plan if good_budget and projected else None
         return {"strategy": strategy, "token": plan.token if self.plan else None, "targets": targets, "orders": projected,
-                "cash_reserve_cny": str(reserve), "auto_enabled": self.enabled, "expires_in": 60,
+                "cash_reserve_cny": str(reserve), "auto_enabled": self.enabled and self.desk.auto_armed, "expires_in": 60,
                 "message": "仅预演，未发单。" if good_budget else "方案超过自动周期或委托限额，不可开启。"}
 
     def _day_allowed(self, day, orders):
@@ -123,9 +127,9 @@ class AutoOrders:
             self.desk._reconcile(db, day, orders)
 
     def start(self, owner, fields, read, access):
-        client = self.desk._order_client(owner)
         if not self.enabled or not self.equity_field or not access():
             raise LiveError("本部署尚未开放自动委托，或网络授权已经失效。")
+        client = self.desk._authorized_client(owner, automatic=True)
         plan = self.plan
         if (not plan or fields.get("confirmation") != AUTO_CONFIRMATION or self.active
                 or fields.get("token") != plan.token or time.monotonic() >= plan.expires):
