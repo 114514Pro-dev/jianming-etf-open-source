@@ -102,6 +102,15 @@
             <h3 id="broker-auto-title">D0 / F0 自动委托</h3>
             <p class="small muted">先预演再单独授权；同一账户一次仅运行一个策略。只适用当前执行日，配对或券商授权失效就停止。切换选择不会发单。</p>
             <p id="broker-auto-state" class="small muted" aria-live="polite"></p>
+            <form id="broker-auto-arm" method="post" autocomplete="off" hidden>
+              <p class="small muted">自动模式与手动委托分别授权。此操作仅验证券商登录，不发单。</p>
+              <div class="control-fields">
+                <label>证券资金账号<input id="broker-auto-account" inputmode="numeric" maxlength="20" required></label>
+                <label>证券交易密码<input id="broker-auto-password" type="password" maxlength="128" required autocomplete="new-password"></label>
+                <label>输入「授权自动实盘」<input id="broker-auto-arm-phrase" maxlength="12" required></label>
+              </div>
+              <button type="submit" class="button danger">授权自动实盘</button>
+            </form>
             <form id="broker-auto-preview" method="post" autocomplete="off">
               <label>策略<select id="broker-auto-strategy"><option value="D0">D0 · 原四资产</option><option value="F0">F0 · 主策略</option></select></label>
               <button type="submit" class="button secondary">预演自动委托</button>
@@ -112,6 +121,26 @@
             </form>
             <button id="broker-auto-stop" type="button" class="button danger" hidden>停止自动委托</button>
             <output id="broker-auto-result" aria-live="polite"></output>
+            <details id="broker-diagnostics-panel">
+              <summary>只读字段核对</summary>
+              <p class="small muted">对照东方财富官方客户端的「总资产」。如有当天已成交的委托，可输入其委托编号对照实际成交份额。此处只查询，不会发单或开启自动交易。</p>
+              <form id="broker-diagnostics" method="post" autocomplete="off">
+                <label>当日委托编号（选填）<input id="broker-diagnostics-receipt" inputmode="numeric" maxlength="24" pattern="[0-9]{1,24}" autocomplete="off"></label>
+                <button type="submit" class="button secondary">读取核对字段</button>
+              </form>
+              <div id="broker-diagnostics-result" class="small muted" role="status" aria-live="polite"></div>
+              <form id="broker-field-verify" method="post" autocomplete="off" hidden>
+                <p class="small muted">请从官方客户端抄录，用于确认字段。须使用金额大于可用资金的总资产候选，以及一笔已完整成交的当日委托。</p>
+                <div class="control-fields">
+                  <label>已核对的总资产字段<select id="broker-field-name" required></select></label>
+                  <label>官方客户端总资产（元）<input id="broker-field-total" inputmode="decimal" maxlength="16" required></label>
+                  <label>官方客户端实际成交份额<input id="broker-field-filled" inputmode="numeric" maxlength="12" required></label>
+                  <label>输入「已与官方客户端核对」<input id="broker-field-phrase" maxlength="12" required></label>
+                </div>
+                <button type="submit" class="button secondary">确认只读字段</button>
+                <output id="broker-field-result" aria-live="polite"></output>
+              </form>
+            </details>
           </section>
           <details id="broker-unbind-panel" hidden>
             <summary>解绑当前账户</summary>

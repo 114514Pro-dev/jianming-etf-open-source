@@ -2160,11 +2160,14 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                     "enroll": {"username", "password", "enrollment_code", "confirmation"}, "unbind": {"confirmation"},
                     "live": {"confirmation"}, "arm": {"username", "password", "confirmation"}, "stop": set(),
                     "auto-preview": {"strategy"}, "auto-start": {"token", "confirmation"}, "auto-stop": set(),
+                    "diagnostics": {"receipt"},
+                    "auto-verify": {"token", "field", "total_cny", "filled_shares", "confirmation"},
+                    "auto-arm": {"username", "password", "confirmation"},
                     "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"},
                     "limits": {"single_cny", "daily_cny"}}
             if action not in keys:
                 raise HTTPException(404, "不支持的券商操作")
-            if action in {"arm", "draft", "submit", "auto-start"} and not broker_orders:
+            if action in {"arm", "draft", "submit", "auto-arm", "auto-start"} and not broker_orders:
                 raise HTTPException(403, "券商当前只允许登录和只读核对，真实委托尚未开放。")
             try:
                 payload = await request.json()
@@ -2173,9 +2176,12 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             if not isinstance(payload, dict) or set(payload) != keys[action]:
                 raise HTTPException(400, "券商操作字段不符")
             try:
-                if action in {"stop", "disconnect", "auto-stop"}:
+                if action in {"disconnect", "auto-stop"}:
                     desk.request_auto_stop(owner)
                 valid_session, send_allowed = broker_scopes(request, owner)
+                if action == "diagnostics":
+                    data = await asyncio.to_thread(desk.diagnose, owner, payload["receipt"], send_allowed)
+                    return JSONResponse(data, headers={"Cache-Control": "no-store"})
                 if action == "connect":
                     return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"], valid_session=valid_session)
                 if action == "enroll":
@@ -2185,6 +2191,12 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                         with desk.lock:
                             if not desk._current(owner):
                                 raise LiveError("请先登录当前已绑定的券商账户。")
+                            if action == "auto-verify":
+                                return desk.verify_diagnostics(owner, payload, send_allowed)
+                            if action == "auto-arm":
+                                if not send_allowed():
+                                    raise LiveError("网页或网络授权已失效。")
+                                return desk.arm_auto(owner, payload, send_allowed)
                             if action == "auto-preview":
                                 return desk.auto.preview(owner, payload["strategy"], auto_source)
                             if action == "auto-start":

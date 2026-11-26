@@ -22,6 +22,8 @@ from realtime_paper_engine import D, TZ, dt
 CONFIRMATION = "确认实盘"
 LIVE_CONFIRMATION = "开启实盘"
 ARM_CONFIRMATION = "允许真实委托"
+AUTO_ARM_CONFIRMATION = "授权自动实盘"
+FIELD_CONFIRMATION = "已与官方客户端核对"
 DEFAULT_SINGLE = Decimal("800000")
 DEFAULT_DAILY = HARD_LIMIT = Decimal("5000000")
 
@@ -42,6 +44,10 @@ def _limits(single, daily):
 
 SECURITIES = {s: (s[2:], "SA" if s.startswith("sz") else "HA") for s in SYMBOLS}
 TERMINAL = frozenset({"已成", "已成交", "已撤", "已撤单", "废单", "部撤"})
+# Only these monetary candidate names may appear in diagnostics. A candidate is not a verified mapping.
+EQUITY_CANDIDATES = frozenset({"zzc", "zcze", "zzj", "zzcze", "totalasset", "totalassets", "total_asset",
+                               "total_assets", "totalassetvalue", "totalequity", "total_equity"})
+KNOWN_ORDER_STATES = TERMINAL | {"未报", "待报", "已报", "已受理", "部成", "部分成交"}
 
 
 def _rows(payload):
@@ -123,7 +129,10 @@ class BrokerDesk:
                  now=lambda: datetime.now(TZ)):
         self.path, self.factory = Path(path), client_factory
         self.orders_cap = orders_cap
-        self.live_active = self.orders_armed = False
+        self.live_active = self.orders_armed = self.auto_armed = False
+        self.verification = self.auto_arm_scope = None
+        self.verified_equity_field = None
+        self.equity_hint = equity_field
         self.enrollment_sha256 = enrollment_sha256
         self.managed_by_env = bool(account)
         self.rebind_pending = False
@@ -143,6 +152,8 @@ class BrokerDesk:
                        "account_tag TEXT NOT NULL, single_cap TEXT, daily_cap TEXT)")
             db.execute("CREATE TABLE IF NOT EXISTS broker_rebind (id INTEGER PRIMARY KEY CHECK(id=1), "
                        "code_tag TEXT NOT NULL, single_cap TEXT NOT NULL, daily_cap TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS broker_auto_fields (account_tag TEXT PRIMARY KEY, equity_field TEXT NOT NULL, "
+                       "verified_at TEXT NOT NULL)")
             db.execute("CREATE TABLE IF NOT EXISTS broker_binding_events (id INTEGER PRIMARY KEY, "
                        "account_tag TEXT NOT NULL, action TEXT NOT NULL, event_at TEXT NOT NULL)")
             row = db.execute("SELECT * FROM broker_policy WHERE id=1").fetchone()
@@ -170,6 +181,9 @@ class BrokerDesk:
                     raise RuntimeError("委托日志属于另一资金账号；须人工核对后使用独立日志。")
                 if row["single_cap"] is not None:
                     self.single_limit, self.daily_limit = _limits(row["single_cap"], row["daily_cap"])
+            verified = db.execute("SELECT equity_field FROM broker_auto_fields WHERE account_tag=?", (self.account_tag,)).fetchone()
+            if verified:
+                self.verified_equity_field = self.auto.equity_field = verified["equity_field"]
 
     @property
     def bound(self):
@@ -199,7 +213,8 @@ class BrokerDesk:
         if equity_field and (not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", equity_field) or equity_field == "Kyzj"):
             raise RuntimeError("ETF_EMTL_AUTO_EQUITY_FIELD 必须是核实后的总资产字段，不能用可用资金代替")
         orders_cap = os.environ.get("ETF_EMTL_ORDERS_ENABLED") == "1"
-        auto_cap = bool(orders_cap and equity_field and os.environ.get("ETF_EMTL_AUTO_ENABLED") == "1")
+        # The existing deployment-wide permission is still the emergency ceiling; explicit zero disables auto.
+        auto_cap = orders_cap and os.environ.get("ETF_EMTL_AUTO_ENABLED", "1") == "1"
         budget, _ = _limits(os.environ.get("ETF_EMTL_AUTO_MAX_CYCLE_CNY", "5000"), str(HARD_LIMIT))
         return cls(path, account, single, daily, lambda **settings: TradingClient(session_factory=direct_session, **settings),
                    enrollment_sha256=enrollment or None, orders_cap=orders_cap, auto_cap=auto_cap,
@@ -222,7 +237,8 @@ class BrokerDesk:
     def _drop(self):
         client = self.client
         self.owner = self.client = self.draft = self.session_tail = self.valid_session = None
-        self.live_active = self.orders_armed = False
+        self.live_active = self.orders_armed = self.auto_armed = False
+        self.verification = None
         self.auto.stop("券商或网站会话结束。")
         self._close_client(client)
 
@@ -344,6 +360,8 @@ class BrokerDesk:
 
     def enable_live(self, owner, fields):
         with self.lock:
+            if self.auto.active or self.auto_armed:
+                raise LiveError("请先停止自动实盘，再开启手动实盘。")
             if not self._current(owner) or fields.get("confirmation") != LIVE_CONFIRMATION:
                 raise LiveError("请先登录当前绑定的券商账户，并输入「开启实盘」。")
             self.live_active = True
@@ -354,7 +372,6 @@ class BrokerDesk:
             if self._current(owner):
                 self.live_active = self.orders_armed = False
                 self.draft = None
-                self.auto.stop("操作人已停止实盘。")
             return self.status(owner)
 
     def arm_orders(self, owner, fields):
@@ -379,10 +396,39 @@ class BrokerDesk:
             self.live_active = self.orders_armed = True
             return {**self.status(owner), **account}
 
-    def _order_client(self, owner, *, automatic=False):
+    def arm_auto(self, owner, fields, access):
+        with self.lock:
+            old = self._current(owner)
+            if not (old and access() and not self.auto.active and self.verified_equity_field and self.auto.enabled and self.orders_cap):
+                raise LiveError("须先完成字段核对、登录券商并停止旧的自动委托。")
+            if fields.get("confirmation") != AUTO_ARM_CONFIRMATION:
+                raise LiveError("请输入「授权自动实盘」。")
+            username, password = fields.get("username"), fields.get("password")
+            if not secrets.compare_digest(self._credential_tag(username, password), self.account_tag):
+                raise LiveError("只允许为当前绑定的账户授权。")
+            if time.monotonic() < self.next_login:
+                raise LiveError("券商登录请求过于频繁，请稍后再试。")
+            valid_session = self.valid_session
+            self._drop()
+            client, account = self._login(username, password)
+            self._attach(owner, client, username, valid_session)
+            if not self._current(owner) or not access():
+                self._drop()
+                raise LiveError("网页或网络授权已失效，未授权自动实盘。")
+            self.auto_armed = True
+            self.auto_arm_scope = access
+            self.auto.note = "自动实盘已授权；须预演并另行确认才会发单。"
+            return {**self.status(owner), **account}
+
+    def _authorized_client(self, owner, *, automatic=False):
         client = self._current(owner)
-        if not client or not self.orders_cap or not self.orders_armed:
-            raise LiveError("连接或委托授权已失效，请在网页开启实盘并授权真实委托。")
+        armed = (self.auto_armed and self.auto.enabled and self.verified_equity_field and self.auto_arm_scope()) if automatic else self.orders_armed
+        if not client or not self.orders_cap or not armed:
+            raise LiveError("连接或委托授权已失效，请在网页重新授权对应的手动或自动模式。")
+        return client
+
+    def _order_client(self, owner, *, automatic=False):
+        client = self._authorized_client(owner, automatic=automatic)
         if not automatic and self.auto.active:
             raise LiveError("自动委托运行中，请先停止自动委托再手动操作。")
         if automatic and not self.auto.active:
@@ -415,18 +461,104 @@ class BrokerDesk:
                 if db.execute("DELETE FROM broker_policy WHERE id=1 AND account_tag=?", (self.account_tag,)).rowcount != 1:
                     raise LiveError("账户绑定已变更，未解绑。")
                 self._binding_event(db, self.account_tag, "unbound")
+                db.execute("DELETE FROM broker_auto_fields WHERE account_tag=?", (self.account_tag,))
                 db.execute("INSERT INTO broker_rebind VALUES (1, ?, ?, ?)",
                            (digest, str(self.single_limit), str(self.daily_limit)))
-            self.account_tag = None
+            self.account_tag = self.verified_equity_field = None
+            self.auto.equity_field = self.equity_hint
             self.enrollment_sha256, self.rebind_pending = digest, True
             self._drop()
             return {"connected": False, "account_bound": False, "rebind_code": code}
+
+    def diagnose(self, owner, receipt, access):
+        """Return an allowlisted read-only projection, never the broker payload."""
+        if not isinstance(receipt, str) or (receipt and not re.fullmatch(r"[0-9]{1,24}", receipt)):
+            raise LiveError("委托编号须为 1 至 24 位数字；没有当日成交样本可留空。")
+        with self.lock:
+            client = self._current(owner)
+            if not client or not access():
+                raise LiveError("请在已授权网页连接绑定的券商账户。")
+            if self.auto.active or self.auto_armed:
+                raise LiveError("请停止自动实盘后再做字段核对。")
+            self.verification = None
+            asset_response = self._query(client.query_asset_and_position)
+            account = _account(asset_response)
+            row = _rows(asset_response)[0]
+            observed = dt(self.now())
+            candidates = []
+            for field in sorted(key for key in row if isinstance(key, str)):
+                if field.lower() == "kyzj" or (field.lower() not in EQUITY_CANDIDATES and field != self.equity_hint):
+                    continue
+                try:
+                    amount = _nonnegative(row[field])
+                except LiveError:
+                    continue
+                candidates.append({"field": field, "amount_cny": str(amount)})
+            order = None
+            if receipt:
+                orders = _rows(self._query(client.query_orders))
+                matches = [item for item in orders if item.get("Wtrq") == observed.strftime("%Y%m%d")
+                           and item.get("Wtbh") == receipt]
+                if len(orders) >= 100 or len(matches) != 1 or dt(self.now()).date() != observed.date():
+                    order = {"state": "unavailable"}
+                else:
+                    item = matches[0]
+                    quantities = {}
+                    for field in ("Wtsl", "Cjsl"):
+                        value = item.get(field)
+                        quantities[field] = int(value) if (type(value) in (int, str)
+                            and re.fullmatch(r"[0-9]{1,12}", str(value))) else None
+                    status = item.get("Wtzt")
+                    submitted, filled = quantities["Wtsl"], quantities["Cjsl"]
+                    plausible = submitted is not None and submitted > 0 and filled is not None and filled <= submitted
+                    order = {"state": "found", "status": status if isinstance(status, str) and status in KNOWN_ORDER_STATES else None,
+                             "submitted_shares": submitted, "filled_shares": filled if plausible else None,
+                             "full_fill_candidate": (plausible and filled == submitted and status in ("已成", "已成交")
+                                                     and item.get("Zqdm") in tuple(code for code, _ in SECURITIES.values()))}
+            if self._current(owner) is not client or not access():
+                raise LiveError("网页或网络授权已失效，未返回核对结果。")
+            token = None
+            cash = Decimal(account["available_cash"])
+            verifiable = {x["field"]: Decimal(x["amount_cny"]) for x in candidates if Decimal(x["amount_cny"]) > cash}
+            if verifiable and order and order.get("full_fill_candidate"):
+                token = secrets.token_urlsafe(24)
+                self.verification = (token, time.monotonic() + 180, verifiable, order["filled_shares"], access)
+            return {"observed_at": observed.isoformat(), "available_cash_cny": account["available_cash"],
+                    "equity_candidates": candidates, "order": order, "verification_token": token,
+                    "verifiable_fields": list(verifiable) if token else []}
+
+    def verify_diagnostics(self, owner, fields, access):
+        with self.lock:
+            if not self._current(owner) or not access() or self.auto.active:
+                raise LiveError("请在已授权网页连接券商，停止自动委托后再核对。")
+            proof = self.verification
+            token = fields.get("token")
+            if (not proof or not isinstance(token, str) or not secrets.compare_digest(token, proof[0])
+                    or time.monotonic() >= proof[1] or not proof[4]()):
+                raise LiveError("核对样本已失效，请重新读取当天的已成委托。")
+            field, total, filled = (fields.get(k) for k in ("field", "total_cny", "filled_shares"))
+            if (not isinstance(field, str) or field not in proof[2] or not isinstance(total, str)
+                    or not re.fullmatch(r"[0-9]{1,13}(?:\.[0-9]{1,2})?", total)
+                    or not isinstance(filled, str) or not re.fullmatch(r"[0-9]{1,12}", filled)
+                    or Decimal(total) != proof[2][field] or int(filled) != proof[3]
+                    or fields.get("confirmation") != FIELD_CONFIRMATION):
+                raise LiveError("与官方总资产、实际成交数量或确认文字不一致，未开放自动授权。")
+            with closing(self._db()) as db, db:
+                db.execute("INSERT OR REPLACE INTO broker_auto_fields VALUES (?,?,?)",
+                           (self.account_tag, field, dt(self.now()).isoformat()))
+            self.verification = None
+            self.auto_armed = False
+            self.auto.stop("字段已完成核对，可在网页单独授权自动实盘。")
+            self.verified_equity_field = self.auto.equity_field = field
+            return self.status(owner)
 
     def status(self, owner):
         with self.lock:
             client = self._current(owner)
             if not client:
                 return {"connected": False, "account_bound": self.bound}
+            if self.auto_armed and not self.auto_arm_scope():
+                self.auto.stop("网络授权已失效，请重新配对并授权自动实盘。")
             return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
                     "can_unbind": not self.managed_by_env, "live_active": self.live_active,
                     "orders_armed": self.orders_armed and self.orders_cap, "auto": self.auto.status()}
