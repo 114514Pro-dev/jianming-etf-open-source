@@ -67,6 +67,13 @@ class ConnectorSync:
                                                          and entry.state != 'waiting')
             return result
 
+    def network_lease(self, owner, peer):
+        """In-process identity of this exact pairing, never returned to the web client."""
+        with self._lock:
+            self._prune(self._now())
+            entry = self._entries.get(owner)
+            return entry.signal_digest if peer and entry and entry.authorized_peer == peer else None
+
     def revoke(self, owner):
         with self._lock:
             self._entries.pop(owner, None)

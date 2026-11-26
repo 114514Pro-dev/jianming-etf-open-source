@@ -31,24 +31,25 @@ def _lots(quantity):
     return max(0, quantity) // LOT * LOT
 
 
-def _market(snapshot, now):
-    if snapshot.get("contract_version") != "d0-order-preview-input-v1" or snapshot.get("strategy") != "D0":
-        raise ValueError("请提供 D0 拟单输入 API 快照")
+def _market(snapshot, now, *, strategy="D0"):
+    contract = "d0-order-preview-input-v1" if strategy == "D0" else "f0-order-preview-input-v1"
+    if strategy not in {"D0", "F0"} or snapshot.get("contract_version") != contract or snapshot.get("strategy") != strategy:
+        raise ValueError("拟单输入与所选策略不一致")
     if snapshot.get("source_status") != "ready" or snapshot.get("historical_seed") is not False:
         raise ValueError("行情来源未就绪，或当前仅有历史种子")
     cal = TradingCalendar()
     signal = _mapping(snapshot.get("signal"))
     signal_id = signal.get("id")
-    if (signal.get("strategy") != "D0" or signal.get("valid") is not True
+    if (signal.get("strategy") != strategy or signal.get("valid") is not True
             or not isinstance(signal_id, str) or not re.fullmatch(r"[0-9a-f]{64}", signal_id)):
-        raise ValueError("缺少有效的已确认 D0 信号")
+        raise ValueError("缺少所选策略的已确认信号")
     confirmed = cal.expected_confirmed_day(now)
     eligible = dt(signal.get("eligible_at"))
     if (not confirmed or signal.get("confirmed_day") != confirmed.isoformat()
             or cal.next_session(confirmed) != now.date() or signal.get("execution_day") != now.date().isoformat()
             or eligible.date() != now.date() or eligible.time() != time(9, 30)
             or not eligible <= now or not cal.is_continuous(now)):
-        raise ValueError("信号过期、交易日历未知，或不在 D0 连续交易时段")
+        raise ValueError("信号过期、交易日历未知，或不在连续交易时段")
     cutoff, known = dt(signal.get("data_cutoff")), dt(signal.get("known_at"))
     if not (cutoff.date() == confirmed and cutoff < eligible and cutoff <= known <= now):
         raise ValueError("信号的确认时间无效")
@@ -82,10 +83,10 @@ def _market(snapshot, now):
     return signal_id, eligible, weights, prices, received
 
 
-def preview(snapshot, balances, *, now):
+def preview(snapshot, balances, *, now, strategy="D0"):
     """Preview one stage against explicitly allocated D0 cash and holdings only."""
     now = dt(now)
-    signal_id, eligible, weights, prices, received = _market(_mapping(snapshot), now)
+    signal_id, eligible, weights, prices, received = _market(_mapping(snapshot), now, strategy=strategy)
     balances = _mapping(balances)
     cash, available = _amount(balances.get("cash")), _amount(balances.get("available_cash"))
     if available > cash or balances.get("pending_orders") is not False:
@@ -139,7 +140,7 @@ def preview(snapshot, balances, *, now):
     cash_weight = max(Decimal(0), 1 - sum(weights.values()))
     allocation = {s: {"weight": str(w), "target_value": format_cny(equity * w)} for s, w in weights.items()}
     allocation["cash"] = {"weight": str(cash_weight), "target_value": format_cny(equity * cash_weight)}
-    return {"mode": "preview_only", "strategy": "D0", "signal_id": signal_id, "eligible_at": eligible.isoformat(),
+    return {"mode": "preview_only", "strategy": strategy, "signal_id": signal_id, "eligible_at": eligible.isoformat(),
             "stage": stage, "quote_received_at": received.isoformat(), "quote_receive_age_ms": round((now - received).total_seconds() * 1000),
             "equity": format_cny(equity), "allocation": allocation,
             "targets": targets, "orders": orders, "sell_remainder": blocked}
