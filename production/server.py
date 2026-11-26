@@ -1472,6 +1472,14 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         return bool(peer and request.cookies.get("etf_session") and connector_sync.status(
             session_owner(request), peer=peer, include_network=True)["broker_network_authorized"])
 
+    async def maintain_broker(desk, stop):
+        while not stop.is_set():
+            await asyncio.to_thread(desk.tick)
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=2)
+            except TimeoutError:
+                pass
+
     @asynccontextmanager
     async def lifespan(app):
         encoded = os.environ.get("ETF_WEB_PASSWORD_HASH", "")
@@ -1485,6 +1493,8 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         app.state.runtime = Runtime(home)
         interrupted = False
         app.state.broker_desk = None
+        broker_job = None
+        broker_stop = app.state.broker_stop = asyncio.Event()
         try:
             if emtl_web:
                 from emtl_live import BrokerDesk
@@ -1623,14 +1633,21 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 service = app.state.sector_research
                 app.state.runtime.register_shutdown_dependency(service, name="sector research",
                     stopped=lambda service=service: service.shutdown_complete is True)
+            if app.state.broker_desk:
+                broker_job = asyncio.create_task(maintain_broker(app.state.broker_desk, broker_stop))
             yield
         except BaseException:
             interrupted = True
             raise
         finally:
             try:
-                if app.state.broker_desk:
-                    await asyncio.to_thread(app.state.broker_desk.close)
+                broker_stop.set()
+                try:
+                    if broker_job is not None:
+                        await broker_job
+                finally:
+                    if app.state.broker_desk:
+                        await asyncio.to_thread(app.state.broker_desk.close)
             finally:
                 await shutdown_runtime(app.state.runtime, interrupted=interrupted)
 
@@ -1641,8 +1658,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
     from company_research.routes import install_routes
     install_routes(app)
 
-    def session(request, required=True, *, renew=False):
-        token = request.cookies.get("etf_session", "")
+    def session_token(token, *, renew=False):
         with auth_lock:
             current = sessions.get(token)
             if current and current["expires"] <= time.time():
@@ -1653,6 +1669,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 current = app.state.device_sessions.lookup(token, renew=renew)
             except SessionStoreUnavailable:
                 raise HTTPException(503, "设备登录状态暂不可用，请稍后重试") from None
+        return current
+
+    def session(request, required=True, *, renew=False):
+        current = session_token(request.cookies.get("etf_session", ""), renew=renew)
         if required and not current:
             raise HTTPException(401, "请先登录")
         return current
@@ -2067,8 +2087,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 broker_state = "connector_pairing_required"
             else:
                 broker_state = "private_origin_required"
-            account_bound = bool(available and app.state.broker_desk and app.state.broker_desk.bound)
-            return {"mode": "preview_only", "live_orders_enabled": account_bound and broker_orders,
+            desk = app.state.broker_desk
+            account_bound = bool(available and desk and desk.bound)
+            orders_enabled = bool(account_bound and broker_orders and desk.status(session_owner(request)).get("orders_armed"))
+            return {"mode": "preview_only", "live_orders_enabled": orders_enabled,
                     "broker_orders_configured": available and broker_orders, "account_bound": account_bound, "broker_state": broker_state,
                     "strategy": "D0", "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
                     "market_state": "unknown" if calendar.is_session(now.date()) is None else "open" if calendar.segment(now) else "closed",
@@ -2100,10 +2122,34 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 raise HTTPException(403, "请从已配置的私有 HTTPS 控制台访问券商交易。")
             return app.state.broker_desk, session_owner(request)
 
+        def broker_scopes(request, owner):
+            token = request.cookies["etf_session"]
+            fixed = peer_ip(request) in allowed_broker_ips
+            peer = connector_peer(request)
+            lease = connector_sync.network_lease(owner, peer) if peer else None
+
+            def valid_session():
+                return bool(session_token(token))
+
+            def send_allowed():
+                return (not app.state.broker_stop.is_set() and valid_session()
+                        and (fixed or bool(lease and connector_sync.network_lease(owner, peer) == lease)))
+
+            return valid_session, send_allowed
+
+        def auto_source(strategy):
+            service = app.state.paper_services.get(strategy)
+            if strategy not in {"D0", "F0"} or not callable(getattr(service, "execution_input", None)):
+                raise ValueError("所选策略没有可用的独立实盘输入")
+            return service.execution_input()
+
         @app.get("/api/d0-control/broker")
         async def broker_status(request: Request):
             desk, owner = broker_access(request)
-            return await asyncio.to_thread(desk.status, owner)
+            status = await asyncio.to_thread(desk.status, owner)
+            status["auto_strategies"] = [code for code in ("D0", "F0") if callable(
+                getattr(app.state.paper_services.get(code), "execution_input", None))]
+            return status
 
         @app.post("/api/d0-control/broker/{action}")
         async def broker_action(request: Request, action: str):
@@ -2112,11 +2158,13 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             desk, owner = broker_access(request)
             keys = {"connect": {"username", "password"}, "disconnect": set(),
                     "enroll": {"username", "password", "enrollment_code", "confirmation"}, "unbind": {"confirmation"},
+                    "live": {"confirmation"}, "arm": {"username", "password", "confirmation"}, "stop": set(),
+                    "auto-preview": {"strategy"}, "auto-start": {"token", "confirmation"}, "auto-stop": set(),
                     "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"},
                     "limits": {"single_cny", "daily_cny"}}
             if action not in keys:
                 raise HTTPException(404, "不支持的券商操作")
-            if action in {"draft", "submit"} and not broker_orders:
+            if action in {"arm", "draft", "submit", "auto-start"} and not broker_orders:
                 raise HTTPException(403, "券商当前只允许登录和只读核对，真实委托尚未开放。")
             try:
                 payload = await request.json()
@@ -2125,19 +2173,45 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             if not isinstance(payload, dict) or set(payload) != keys[action]:
                 raise HTTPException(400, "券商操作字段不符")
             try:
+                if action in {"stop", "disconnect", "auto-stop"}:
+                    desk.request_auto_stop(owner)
+                valid_session, send_allowed = broker_scopes(request, owner)
                 if action == "connect":
-                    return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"])
+                    return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"], valid_session=valid_session)
                 if action == "enroll":
-                    return await asyncio.to_thread(desk.enroll, owner, payload)
+                    return await asyncio.to_thread(desk.enroll, owner, payload, valid_session=valid_session)
+                if action.startswith("auto-"):
+                    def auto_action():
+                        with desk.lock:
+                            if not desk._current(owner):
+                                raise LiveError("请先登录当前已绑定的券商账户。")
+                            if action == "auto-preview":
+                                return desk.auto.preview(owner, payload["strategy"], auto_source)
+                            if action == "auto-start":
+                                return desk.auto.start(owner, payload, auto_source, send_allowed)
+                            return desk.auto.stop()
+                    return await asyncio.to_thread(auto_action)
                 if action == "unbind":
                     state = await asyncio.to_thread(desk.unbind, owner, payload)
                     return JSONResponse(state, headers={"Cache-Control": "no-store"})
                 if action == "disconnect":
                     return await asyncio.to_thread(desk.disconnect, owner)
+                if action == "live":
+                    return await asyncio.to_thread(desk.enable_live, owner, payload)
+                if action == "arm":
+                    return await asyncio.to_thread(desk.arm_orders, owner, payload)
+                if action == "stop":
+                    return await asyncio.to_thread(desk.stop_live, owner)
                 if action == "limits":
                     return await asyncio.to_thread(desk.update_limits, owner, payload)
-                operation = desk.draft_order if action == "draft" else desk.submit
-                return await asyncio.to_thread(operation, owner, payload, d0_order_preview_input)
+                if action == "draft":
+                    return await asyncio.to_thread(desk.draft_order, owner, payload, d0_order_preview_input)
+
+                def require_scope(_account, _orders):
+                    if not send_allowed():
+                        raise LiveError("网页或网络授权已失效，没有发送委托。")
+
+                return await asyncio.to_thread(desk.submit, owner, payload, d0_order_preview_input, preflight=require_scope)
             except LiveError as exc:
                 raise HTTPException(409, str(exc)) from None
             except sqlite3.Error:

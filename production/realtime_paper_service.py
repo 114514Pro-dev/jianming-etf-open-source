@@ -962,9 +962,14 @@ class PaperService:
             return self.snapshot()
 
     def order_preview_input(self):
-        """Read-only D0 inputs; do not export paper balances or the ledger history."""
         if self.strategy != "D0":
             raise ValueError("order previews support D0 only")
+        return self.execution_input()
+
+    def execution_input(self):
+        """Read-only confirmed signal and quote projection; no paper balances/history."""
+        if self.strategy not in {"D0", "F0"}:
+            raise ValueError("execution supports D0 and main F0 only")
         with self._lock:
             raw = self.ledger.snapshot()
             state = self._source_state
@@ -984,7 +989,7 @@ class PaperService:
                     quotes[symbol] = quote
                 observation = {"received_at": batch.get("received_at"), "quotes": quotes}
             fields = ("id", "strategy", "valid", "confirmed_day", "execution_day", "eligible_at", "data_cutoff", "known_at", "weights")
-            return {"contract_version": "d0-order-preview-input-v1", "strategy": self.strategy,
+            return {"contract_version": f"{self.strategy.lower()}-order-preview-input-v1", "strategy": self.strategy,
                     "source_status": state.get("source_status"), "historical_seed": state.get("historical_seed"),
                     "signal": {key: copy.deepcopy(signal.get(key)) for key in fields} if isinstance(signal, dict) else None,
                     "market_observation": observation}

@@ -13,7 +13,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'production'))
@@ -195,7 +195,7 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 desk.enroll.return_value = {'connected': True, 'account_bound': True, 'account_tail': '1234'}
                 status, _, result = await request(app, action, data=fields, **options)
                 self.assertEqual((status, result['account_bound']), (200, True))
-                desk.enroll.assert_called_once_with(owner, fields)
+                desk.enroll.assert_called_once_with(owner, fields, valid_session=ANY)
                 action = '/api/d0-control/broker/unbind'
                 confirm = {'confirmation': '确认解绑'}
                 self.assertEqual((await request(app, action, data=confirm, **denied))[0], 403)

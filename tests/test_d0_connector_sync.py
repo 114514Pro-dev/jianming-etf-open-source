@@ -41,6 +41,17 @@ class SyncExpiryTests(unittest.TestCase):
         self.sync.start('browser', peer=peer)
         self.assertFalse(authorized())
 
+    def test_network_lease_cannot_be_renewed_by_repairing_at_same_address(self):
+        peer = '8.8.8.8'
+        self.sync.claim(self.sync.start('browser', peer=peer)['code'], peer=peer)
+        first = self.sync.network_lease('browser', peer)
+        self.assertIsNotNone(first)
+        self.assertIsNone(self.sync.network_lease('other-browser', peer))
+        self.sync.start('browser', peer=peer)
+        self.assertIsNone(self.sync.network_lease('browser', peer))
+        self.sync.claim(self.sync.start('browser', peer=peer)['code'], peer=peer)
+        self.assertNotEqual(first, self.sync.network_lease('browser', peer))
+
     def test_new_pair_and_logout_revoke_previous_token(self):
         token = self.sync.claim(self.sync.start('browser')['code'])['sync_token']
         pair = self.sync.start('browser')['code']
