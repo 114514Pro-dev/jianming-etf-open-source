@@ -50,6 +50,8 @@ async function run() {
       let live = false;
       let connected = false;
       let accountBound = false;
+      let liveActive = false;
+      let ordersArmed = false;
       let syncState = 'not_linked';
       let brokerNetwork = false;
       let limits = {single_cny: '800000', daily_cny: '5000000', maximum_cny: '5000000'};
@@ -79,14 +81,19 @@ async function run() {
           syncState = 'waiting';
           return route.fulfill({json: {code: 'A'.repeat(32), expires_in: 300}});
         }
-        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live && accountBound, broker_orders_configured: live, account_bound: accountBound, broker_state: brokerState, market_state: marketState}});
+        if (url.pathname === `${prefix}/status`) return route.fulfill({json: {...json[url.pathname], live_orders_enabled: live && ordersArmed, broker_orders_configured: live, account_bound: accountBound, broker_state: brokerState, market_state: marketState}});
         if (url.pathname === `${prefix}/broker/enroll`) accountBound = connected = true;
         if (url.pathname === `${prefix}/broker/connect`) connected = true;
-        if ([`${prefix}/broker`, `${prefix}/broker/connect`, `${prefix}/broker/enroll`].includes(url.pathname))
-          return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234', limits}});
+        if (url.pathname === `${prefix}/broker/live`) liveActive = true;
+        if (url.pathname === `${prefix}/broker/arm`) ordersArmed = true;
+        if (url.pathname === `${prefix}/broker/stop`) ordersArmed = liveActive = false;
+        const brokerActions = ['', '/connect', '/enroll', '/live', '/arm', '/stop'];
+        if (brokerActions.some(action => url.pathname === `${prefix}/broker${action}`))
+          return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234',
+            limits, live_active: liveActive, orders_armed: ordersArmed}});
         if (url.pathname === `${prefix}/broker/unbind`) {
           if (request.postDataJSON().confirmation !== '确认解绑') return route.fulfill({status: 409, json: {detail: '请输入「确认解绑」。'}});
-          accountBound = connected = false;
+          accountBound = connected = liveActive = ordersArmed = false;
           return route.fulfill({json: {connected, account_bound: accountBound, rebind_code: 'N'.repeat(43)}});
         }
         if (url.pathname === `${prefix}/broker/limits`) {
@@ -224,7 +231,17 @@ async function run() {
       assert.equal(writes.find(([path]) => path.endsWith('/limits'))[1].single_cny, '10000');
       live = true;
       await page.locator('#refresh-signal').click();
+      await page.locator('#broker-live-phrase').fill('开启实盘');
+      await page.getByRole('button', {name: '开启实盘', exact: true}).click();
+      await page.locator('#broker-arm').waitFor();
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      await page.locator('#broker-arm-account').fill('000001234');
+      await page.locator('#broker-arm-password').fill('synthetic-password');
+      await page.locator('#broker-arm-phrase').fill('允许真实委托');
+      await page.getByRole('button', {name: '开启真实委托', exact: true}).click();
       await page.locator('#broker-order').waitFor();
+      assert.equal(await page.locator('#broker-arm-password').inputValue(), '');
+      assert.equal(writes.filter(([path]) => path.endsWith('/submit')).length, 0);
       assert.equal(await page.locator('#broker-order button').isDisabled(), true);
       marketState = 'open';
       await page.locator('#refresh-signal').click();
@@ -238,6 +255,9 @@ async function run() {
       await page.locator('#broker-confirm button').click();
       await page.getByText(/收到委托编号 999/).waitFor();
       assert.equal(writes.filter(([path]) => path.endsWith('/submit')).length, 1);
+      await page.getByRole('button', {name: '停止实盘委托', exact: true}).click();
+      await page.getByText(/已停止新委托/).waitFor();
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
       await page.getByText('解绑当前账户').click();
       await page.locator('#broker-unbind-confirm').fill('确认解绑');
       await page.getByRole('button', {name: '确认解绑账户'}).click();

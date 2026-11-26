@@ -36,7 +36,7 @@
     <section id="workspace" hidden>
       <section id="broker" class="panel control-panel" aria-labelledby="broker-title">
         <div class="panel-heading"><h2 id="broker-title">东方财富证券</h2><span id="broker-badge" class="pill neutral">检查网页实盘</span></div>
-        <p class="small muted">独立于网站登录和 D0 拟单。连接券商不会下单；连接最多保留 5 分钟。</p>
+        <p class="small muted">独立于网站登录和 D0 拟单。登录券商后默认只读。本站单次申请 30 分钟的券商连接，券商可能更早断开；之后需重新登录。</p>
         <p id="broker-unavailable" class="broker-unavailable" role="status">正在检查此站点是否允许实盘连接…</p>
         <section class="connector-sync" aria-labelledby="connector-title">
           <h3 id="connector-title">本机同步工具 <span class="pill neutral">Windows · 只读</span></h3>
@@ -79,6 +79,25 @@
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
           <p id="broker-holdings" class="small muted" hidden></p>
+          <section id="broker-controls" class="connector-sync" aria-labelledby="broker-controls-title">
+            <h3 id="broker-controls-title">实盘权限</h3>
+            <p id="broker-control-state" class="small muted">当前只读。</p>
+            <form id="broker-live" method="post" autocomplete="off" hidden>
+              <label>输入「开启实盘」<input id="broker-live-phrase" maxlength="8" required></label>
+              <button type="submit" class="button secondary">开启实盘</button>
+            </form>
+            <form id="broker-arm" method="post" autocomplete="off" hidden>
+              <p class="small muted">重新向券商验证账户后，才允许手动发单。此操作本身不发单。</p>
+              <div class="control-fields">
+                <label>证券资金账号<input id="broker-arm-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
+                <label>证券交易密码<input id="broker-arm-password" type="password" maxlength="128" required autocomplete="new-password"></label>
+                <label>输入「允许真实委托」<input id="broker-arm-phrase" maxlength="8" required></label>
+              </div>
+              <button type="submit" class="button primary">开启真实委托</button>
+            </form>
+            <button id="broker-stop" type="button" class="button danger" hidden>停止实盘委托</button>
+            <output id="broker-control-result" aria-live="polite"></output>
+          </section>
           <details id="broker-unbind-panel" hidden>
             <summary>解绑当前账户</summary>
             <form id="broker-unbind" method="post" autocomplete="off">

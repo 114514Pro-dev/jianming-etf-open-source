@@ -2067,8 +2067,10 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                 broker_state = "connector_pairing_required"
             else:
                 broker_state = "private_origin_required"
-            account_bound = bool(available and app.state.broker_desk and app.state.broker_desk.bound)
-            return {"mode": "preview_only", "live_orders_enabled": account_bound and broker_orders,
+            desk = app.state.broker_desk
+            account_bound = bool(available and desk and desk.bound)
+            orders_enabled = bool(account_bound and broker_orders and desk.status(session_owner(request)).get("orders_armed"))
+            return {"mode": "preview_only", "live_orders_enabled": orders_enabled,
                     "broker_orders_configured": available and broker_orders, "account_bound": account_bound, "broker_state": broker_state,
                     "strategy": "D0", "source_status": source.get("source_status"), "historical_seed": source.get("historical_seed"),
                     "market_state": "unknown" if calendar.is_session(now.date()) is None else "open" if calendar.segment(now) else "closed",
@@ -2112,11 +2114,12 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
             desk, owner = broker_access(request)
             keys = {"connect": {"username", "password"}, "disconnect": set(),
                     "enroll": {"username", "password", "enrollment_code", "confirmation"}, "unbind": {"confirmation"},
+                    "live": {"confirmation"}, "arm": {"username", "password", "confirmation"}, "stop": set(),
                     "draft": {"symbol", "side", "price", "quantity"}, "submit": {"order_token", "confirmation"},
                     "limits": {"single_cny", "daily_cny"}}
             if action not in keys:
                 raise HTTPException(404, "不支持的券商操作")
-            if action in {"draft", "submit"} and not broker_orders:
+            if action in {"arm", "draft", "submit"} and not broker_orders:
                 raise HTTPException(403, "券商当前只允许登录和只读核对，真实委托尚未开放。")
             try:
                 payload = await request.json()
@@ -2134,6 +2137,12 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                     return JSONResponse(state, headers={"Cache-Control": "no-store"})
                 if action == "disconnect":
                     return await asyncio.to_thread(desk.disconnect, owner)
+                if action == "live":
+                    return await asyncio.to_thread(desk.enable_live, owner, payload)
+                if action == "arm":
+                    return await asyncio.to_thread(desk.arm_orders, owner, payload)
+                if action == "stop":
+                    return await asyncio.to_thread(desk.stop_live, owner)
                 if action == "limits":
                     return await asyncio.to_thread(desk.update_limits, owner, payload)
                 operation = desk.draft_order if action == "draft" else desk.submit

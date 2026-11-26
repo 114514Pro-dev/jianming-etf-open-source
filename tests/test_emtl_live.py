@@ -6,7 +6,13 @@ import tempfile
 import unittest
 
 from test_emtl_d0 import inputs, NOW
-from emtl_live import BrokerDesk, CONFIRMATION, LiveError
+from emtl_live import ARM_CONFIRMATION, LIVE_CONFIRMATION, BrokerDesk, CONFIRMATION, LiveError
+
+
+def arm(desk, owner, username, password):
+    desk.enable_live(owner, {'confirmation': LIVE_CONFIRMATION})
+    desk.next_login = 0  # No wall-clock sleep in synthetic credential tests.
+    return desk.arm_orders(owner, {'username': username, 'password': password, 'confirmation': ARM_CONFIRMATION})
 
 
 class Broker:
@@ -47,10 +53,15 @@ class ManualEmtlTests(unittest.TestCase):
         self.create()
 
     def create(self):
-        self.broker = Broker()
-        self.desk = BrokerDesk(self.path, '000001234', Decimal('1000'), Decimal('8000'), lambda **_: self.broker, now=lambda: self.now)
+        first, self.broker = Broker(), Broker()
+        brokers = iter((first, self.broker))
+        self.desk = BrokerDesk(self.path, '000001234', Decimal('1000'), Decimal('8000'), lambda **_: next(brokers),
+                               orders_cap=True, now=lambda: self.now)
         self.addCleanup(self.desk.close)
         info = self.desk.connect('browser-one', '000001234', 'SYNTHETIC_PASSWORD')
+        self.assertFalse(info['orders_armed'])
+        info = arm(self.desk, 'browser-one', '000001234', 'SYNTHETIC_PASSWORD')
+        self.assertTrue(first.closed)
         self.assertEqual(info['account_tail'], '1234')
         self.assertNotIn('SYNTHETIC_PASSWORD', str(info))
 
@@ -145,7 +156,7 @@ class ManualEmtlTests(unittest.TestCase):
         fields = {'username': '0012349876', 'password': 'SYNTHETIC-NOT-STORED',
                   'enrollment_code': code, 'confirmation': '同意绑定'}
         desk = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker,
-                          enrollment_sha256=sha256(code.encode()).hexdigest(), now=lambda: NOW)
+                          enrollment_sha256=sha256(code.encode()).hexdigest(), orders_cap=True, now=lambda: NOW)
         self.addCleanup(desk.close)
         self.assertEqual(desk.status('owner'), {'connected': False, 'account_bound': False})
         with self.assertRaisesRegex(LiveError, '开通码无效'):
@@ -162,6 +173,8 @@ class ManualEmtlTests(unittest.TestCase):
         self.assertEqual(desk.enroll('owner', fields)['account_tail'], '9876')
         self.assertTrue(desk.bound)
         self.assertFalse(broker.sent)
+        broker = Broker()
+        arm(desk, 'owner', fields['username'], fields['password'])
         draft = desk.draft_order('owner', {'symbol': 'sz159915', 'side': 'buy', 'price': '1.001', 'quantity': 100},
                                  lambda: self.snapshot)
         result = desk.submit('owner', {'order_token': draft['order_token'], 'confirmation': CONFIRMATION},
@@ -189,13 +202,15 @@ class ManualEmtlTests(unittest.TestCase):
 
         def start():
             desk = BrokerDesk(ledger, None, Decimal('1000'), Decimal('8000'), lambda **_: broker,
-                              enrollment_sha256=sha256(old_code.encode()).hexdigest(), now=lambda: NOW)
+                              enrollment_sha256=sha256(old_code.encode()).hexdigest(), orders_cap=True, now=lambda: NOW)
             self.addCleanup(desk.close)
             return desk
 
         owner = 'browser-one'
         desk = start()
         desk.enroll(owner, fields)
+        broker = Broker()
+        arm(desk, owner, fields['username'], fields['password'])
         desk.update_limits(owner, {'single_cny': '100', 'daily_cny': '150'})
         confirm = {'confirmation': '确认解绑'}
         with self.assertRaisesRegex(LiveError, '请先登录'):
@@ -239,10 +254,36 @@ class ManualEmtlTests(unittest.TestCase):
         self.assertEqual(rebound['limits']['daily_cny'], '150')
         with self.assertRaisesRegex(LiveError, '请先解绑'):
             restarted.enroll(owner, {**fields, 'enrollment_code': new_code})
+        broker = Broker()
+        arm(restarted, owner, '000008765', fields['password'])
         draft = restarted.draft_order(owner, order, lambda: self.snapshot)
         with self.assertRaisesRegex(LiveError, '本日'):
             restarted.submit(owner, {'order_token': draft['order_token'], 'confirmation': CONFIRMATION}, lambda: self.snapshot)
         self.assertFalse(broker.sent)
+
+    def test_web_controls_require_owner_two_confirmations_and_fresh_verification(self):
+        owner, username = 'browser-one', '000001234'
+        draft = self.draft()
+        self.assertFalse(self.desk.stop_live(owner)['orders_armed'])
+        with self.assertRaisesRegex(LiveError, '授权'):
+            self.submit(draft)
+        with self.assertRaisesRegex(LiveError, '授权'):
+            self.draft()
+        fields = {'username': username, 'password': 'FRESH_PASSWORD', 'confirmation': ARM_CONFIRMATION}
+        with self.assertRaises(LiveError):
+            self.desk.arm_orders(owner, fields)
+        with self.assertRaises(LiveError):
+            self.desk.enable_live('someone-else', {'confirmation': LIVE_CONFIRMATION})
+        self.assertTrue(self.desk.enable_live(owner, {'confirmation': LIVE_CONFIRMATION})['live_active'])
+        self.assertFalse(self.desk.status(owner)['orders_armed'])
+        with self.assertRaisesRegex(LiveError, '绑定'):
+            self.desk.arm_orders(owner, {**fields, 'username': '000009876'})
+        self.desk.next_login = 0
+        self.desk.factory = lambda **_: (_ for _ in ()).throw(RuntimeError('SENSITIVE_BROKER_ERROR'))
+        with self.assertRaisesRegex(LiveError, '券商登录或只读核对失败'):
+            self.desk.arm_orders(owner, fields)
+        self.assertFalse(self.desk.status(owner)['connected'])
+        self.assertFalse(self.broker.sent)
 
     def test_unbind_refuses_environment_pinned_account(self):
         self.assertFalse(self.desk.status('browser-one')['can_unbind'])

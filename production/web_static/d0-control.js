@@ -155,18 +155,15 @@
     brokerAvailable = state === 'available';
     ordersConfigured = brokerAvailable && orders;
     accountBound = brokerAvailable && bound;
-    liveOrders = ordersConfigured && accountBound;
     const messages = {
       disabled: '网页实盘尚未开启。本机工具可配对和收信；这不会开启真实委托。',
       private_origin_required: '当前地址或网络未获券商访问授权；本站不会收取证券凭据。',
       connector_pairing_required: '请在当前网络点击「开始配对」，并在本机工具输入配对码。配对成功后，网站会自动授权此网页会话的网络，无需填公网 IP。',
     };
     const badge = byId('broker-badge');
-    badge.textContent = liveOrders ? '网页手动实盘' : brokerAvailable ? (accountBound ? '网页仅只读核对' : '待首次授权') : state === 'disabled' ? '网页实盘未开启' : state === 'connector_pairing_required' ? '等待网络授权' : '网页实盘暂不可用';
-    badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
-    byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
-    byId('broker-order').hidden = !liveOrders;
-    if (!liveOrders) clearDraft();
+    if (!brokerAvailable) {
+      badge.textContent = state === 'disabled' ? '网页实盘未开启' : state === 'connector_pairing_required' ? '等待网络授权' : '网页实盘暂不可用';
+    }
     const message = byId('broker-unavailable');
     message.hidden = brokerAvailable;
     message.textContent = messages[state] || '无法确认券商连接状态。请刷新 D0 状态后重试。';
@@ -198,6 +195,20 @@
 
   function setBroker(state) {
     brokerConnected = brokerAvailable && state.connected === true;
+    const liveActive = brokerConnected && state.live_active === true;
+    liveOrders = ordersConfigured && liveActive && state.orders_armed === true;
+    const badge = byId('broker-badge');
+    if (brokerAvailable) badge.textContent = liveOrders ? '网页手动实盘' : !accountBound ? '待首次授权' : '网页仅只读核对';
+    badge.className = `pill ${liveOrders ? 'danger' : 'neutral'}`;
+    byId('trading-mode').textContent = liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
+    byId('broker-order').hidden = !liveOrders;
+    byId('broker-live').hidden = !brokerConnected || liveActive;
+    byId('broker-arm').hidden = !liveActive || !ordersConfigured || liveOrders;
+    byId('broker-stop').hidden = !liveActive;
+    byId('broker-control-state').textContent = liveOrders ? '已允许手动委托。每笔订单仍须确认。'
+      : !liveActive ? '默认只读。开启实盘不会下单。'
+      : ordersConfigured ? '实盘已开启，仍未授权真实委托。' : '实盘已开启，此部署尚未开放真实委托权限。';
+    if (!liveOrders) clearDraft();
     byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
     const enrolling = brokerAvailable && !accountBound && !brokerConnected;
     byId('broker-enrollment').hidden = !enrolling;
@@ -225,6 +236,9 @@
     if (!brokerConnected) {
       clearDraft();
       byId('broker-result').textContent = '';
+      byId('broker-arm-account').value = '';
+      byId('broker-arm-password').value = '';
+      byId('broker-control-result').textContent = '';
       holdings.textContent = '';
       holdings.hidden = true;
       byId('broker-settings').open = false;
@@ -323,6 +337,44 @@
       submit.disabled = false;
       byId('broker-disconnect').disabled = false;
     }
+  });
+
+  async function updateBrokerControl(button, action, payload) {
+    button.disabled = true;
+    const output = byId('broker-control-result');
+    output.textContent = action === 'arm' ? '正在向券商重新验证…' : '';
+    if (action === 'stop') {
+      clearDraft();
+      byId('broker-order-fields').disabled = true;
+    }
+    try {
+      setBroker(await brokerCall(action, payload));
+      output.textContent = action === 'stop' ? '已停止新委托。已送达券商的委托不会撤销。' : '';
+    } catch (error) {
+      try { setBroker(await call('/api/d0-control/broker')); }
+      catch { setAvailability('unavailable'); }
+      (brokerConnected ? output : byId('broker-status')).textContent = error.message;
+    } finally { button.disabled = false; }
+  }
+
+  byId('broker-live').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const confirmation = byId('broker-live-phrase');
+    void updateBrokerControl(event.submitter, 'live', {confirmation: confirmation.value.trim()});
+    confirmation.value = '';
+  });
+  byId('broker-arm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const confirmation = byId('broker-arm-phrase');
+    const password = byId('broker-arm-password');
+    const payload = {username: byId('broker-arm-account').value.trim(), password: password.value,
+      confirmation: confirmation.value.trim()};
+    confirmation.value = '';
+    password.value = '';
+    void updateBrokerControl(event.submitter, 'arm', payload);
+  });
+  byId('broker-stop').addEventListener('click', (event) => {
+    void updateBrokerControl(event.currentTarget, 'stop', {});
   });
 
   byId('broker-order').addEventListener('input', clearDraft);

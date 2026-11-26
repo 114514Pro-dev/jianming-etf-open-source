@@ -20,6 +20,8 @@ from d0_order_math import LOT, MAX_ORDER_QTY, SYMBOLS
 from realtime_paper_engine import D, TZ, dt
 
 CONFIRMATION = "确认实盘"
+LIVE_CONFIRMATION = "开启实盘"
+ARM_CONFIRMATION = "允许真实委托"
 DEFAULT_SINGLE = Decimal("800000")
 DEFAULT_DAILY = HARD_LIMIT = Decimal("5000000")
 
@@ -106,12 +108,15 @@ class Order:
 
 
 class BrokerDesk:
-    connection_seconds = 300
+    # EMTL's public login API defaults to 30 minutes. The broker may expire it sooner.
+    login_minutes = 30
     draft_seconds = 30
 
     def __init__(self, path, account, single_limit, daily_limit, client_factory, *, enrollment_sha256=None,
-                 now=lambda: datetime.now(TZ)):
+                 orders_cap=False, now=lambda: datetime.now(TZ)):
         self.path, self.factory = Path(path), client_factory
+        self.orders_cap = orders_cap
+        self.live_active = self.orders_armed = False
         self.enrollment_sha256 = enrollment_sha256
         self.managed_by_env = bool(account)
         self.rebind_pending = False
@@ -182,7 +187,7 @@ class BrokerDesk:
         single, daily = _limits(os.environ.get("ETF_EMTL_MAX_ORDER_CNY", str(DEFAULT_SINGLE)),
                                 os.environ.get("ETF_EMTL_MAX_DAY_CNY", str(DEFAULT_DAILY)))
         return cls(path, account, single, daily, lambda **settings: TradingClient(session_factory=direct_session, **settings),
-                   enrollment_sha256=enrollment or None)
+                   enrollment_sha256=enrollment or None, orders_cap=os.environ.get("ETF_EMTL_ORDERS_ENABLED") == "1")
 
     def _db(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -204,6 +209,7 @@ class BrokerDesk:
         client = self.client
         self.owner = self.client = self.timer = self.draft = self.session_tail = None
         self.expires = 0
+        self.live_active = self.orders_armed = False
         self._close_client(client)
 
     def _expire(self, reference):
@@ -245,11 +251,40 @@ class BrokerDesk:
             raise LiveError("开通码无效。")
         return self._authenticate(owner, fields.get("username"), fields.get("password"), enrollment_code=code)
 
-    def _authenticate(self, owner, username, password, *, enrollment_code=None):
+    @staticmethod
+    def _credential_tag(username, password):
         if (not isinstance(username, str) or not re.fullmatch(r"[0-9]{6,20}", username)
                 or not isinstance(password, str) or not password.strip() or len(password) > 128):
             raise LiveError("无法连接：资金账号或登录信息无效。")
-        tag = sha256(username.encode()).hexdigest()
+        return sha256(username.encode()).hexdigest()
+
+    def _login(self, username, password):
+        if time.monotonic() < self.next_login:
+            raise LiveError("券商登录请求过于频繁，请稍后再试。")
+        self.next_login = time.monotonic() + 5
+        client = None
+        try:
+            client = self.factory(username=username, password=password, connect_timeout=4,
+                                  read_timeout=10, captcha_read_timeout=8, captcha_max_attempts=2)
+            if not client.login(duration=self.login_minutes):
+                raise ValueError
+            account = _account(client.query_asset_and_position())
+            _rows(client.query_orders())
+            return client, account
+        except Exception:
+            self._close_client(client)
+            raise LiveError("券商登录或只读核对失败；请核对密码、账户权限及响应格式。") from None
+
+    def _attach(self, owner, client, username):
+        self.owner, self.client, self.session_tail = owner, client, username[-4:]
+        seconds = self.login_minutes * 60
+        self.expires = time.monotonic() + seconds
+        self.timer = threading.Timer(seconds, self._expire, args=(client,))
+        self.timer.daemon = True
+        self.timer.start()
+
+    def _authenticate(self, owner, username, password, *, enrollment_code=None):
+        tag = self._credential_tag(username, password)
         with self.lock:
             if enrollment_code is not None:
                 if self.bound:
@@ -262,21 +297,7 @@ class BrokerDesk:
             self._current(owner)
             if self.client:
                 raise LiveError("已有券商连接；请先断开，或等待原连接失效。")
-            if time.monotonic() < self.next_login:
-                raise LiveError("券商登录请求过于频繁，请稍后再试。")
-            self.next_login = time.monotonic() + 5
-            client = None
-            try:
-                client = self.factory(username=username, password=password, connect_timeout=4,
-                                      read_timeout=10, captcha_read_timeout=8, captcha_max_attempts=2)
-                if not client.login(duration=5):
-                    raise ValueError
-                # Validate only what the dashboard and pre-submit checks consume.
-                account = _account(client.query_asset_and_position())
-                _rows(client.query_orders())
-            except Exception:
-                self._close_client(client)
-                raise LiveError("券商登录或只读核对失败；请核对密码、账户权限及响应格式。") from None
+            client, account = self._login(username, password)
             if enrollment_code is not None:
                 try:
                     with closing(self._db()) as db, db:
@@ -297,13 +318,47 @@ class BrokerDesk:
                 self.account_tag = tag
                 self.enrollment_sha256 = None
                 self.rebind_pending = False
-            self.owner, self.client, self.session_tail = owner, client, username[-4:]
-            self.expires = time.monotonic() + self.connection_seconds
-            self.timer = threading.Timer(self.connection_seconds, self._expire, args=(client,))
-            self.timer.daemon = True
-            self.timer.start()
-            return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
-                    "can_unbind": not self.managed_by_env, **account}
+            self._attach(owner, client, username)
+            return {**self.status(owner), **account}
+
+    def enable_live(self, owner, fields):
+        with self.lock:
+            if not self._current(owner) or fields.get("confirmation") != LIVE_CONFIRMATION:
+                raise LiveError("请先登录当前绑定的券商账户，并输入「开启实盘」。")
+            self.live_active = True
+            return self.status(owner)
+
+    def stop_live(self, owner):
+        with self.lock:
+            if self._current(owner):
+                self.live_active = self.orders_armed = False
+                self.draft = None
+            return self.status(owner)
+
+    def arm_orders(self, owner, fields):
+        with self.lock:
+            old = self._current(owner)
+            if not (old and self.live_active and self.orders_cap) or fields.get("confirmation") != ARM_CONFIRMATION:
+                raise LiveError("请先开启实盘，再输入「允许真实委托」。")
+            username, password = fields.get("username"), fields.get("password")
+            if not secrets.compare_digest(self._credential_tag(username, password), self.account_tag):
+                raise LiveError("只允许为当前绑定的账户授权。")
+            self.orders_armed = False
+            self.draft = None
+            if time.monotonic() < self.next_login:
+                raise LiveError("券商登录请求过于频繁，请稍后再试。")
+            # Authenticate with a fresh broker client; never renew with stored credentials.
+            self._drop()
+            client, account = self._login(username, password)
+            self._attach(owner, client, username)
+            self.live_active = self.orders_armed = True
+            return {**self.status(owner), **account}
+
+    def _order_client(self, owner):
+        client = self._current(owner)
+        if not client or not self.orders_cap or not self.orders_armed:
+            raise LiveError("连接或委托授权已失效，请在网页开启实盘并授权真实委托。")
+        return client
 
     def _binding_event(self, db, account_tag, action):
         db.execute("INSERT INTO broker_binding_events (account_tag, action, event_at) VALUES (?, ?, ?)",
@@ -342,7 +397,8 @@ class BrokerDesk:
             if not client:
                 return {"connected": False, "account_bound": self.bound}
             return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
-                    "can_unbind": not self.managed_by_env,
+                    "can_unbind": not self.managed_by_env, "live_active": self.live_active,
+                    "orders_armed": self.orders_armed and self.orders_cap,
                     "remaining_seconds": max(0, int(self.expires - time.monotonic()))}
 
     def _public_limits(self):
@@ -378,8 +434,7 @@ class BrokerDesk:
             raise LiveError("请选择 D0 的 ETF 和买卖方向；价格最多三位小数，份额必须是 100 的整数倍。")
         order = Order(symbol, side, Decimal(raw_price), quantity)
         with self.lock:
-            if not self._current(owner):
-                raise LiveError("请先连接东方财富证券。")
+            self._order_client(owner)
             self.draft = None
             if not order.price or order.notional > self.single_limit:
                 raise LiveError("委托价格无效或超过单笔金额上限。")
@@ -417,16 +472,21 @@ class BrokerDesk:
 
     def submit(self, owner, fields, read_market):
         with self.lock:
-            client = self._current(owner)
-            if not client or not self.draft:
-                raise LiveError("连接或确认已失效，请重新核对委托。")
+            client = self._order_client(owner)
+            if not self.draft:
+                raise LiveError("委托确认已失效，请重新核对委托。")
             token, expires, day, order = self.draft
             if (fields.get("order_token") != token or time.monotonic() >= expires
                     or fields.get("confirmation") != CONFIRMATION):
                 raise LiveError("委托确认已失效或确认文字不正确。")
             self.draft = None
-            account = _account(self._query(client.query_asset_and_position))
-            orders = _rows(self._query(client.query_orders))
+            try:
+                account = _account(self._query(client.query_asset_and_position))
+                orders = _rows(self._query(client.query_orders))
+            except LiveError:
+                # Broker tokens may expire before our timer. Never reuse a failed login for sending.
+                self._drop()
+                raise
             if len(orders) >= 100:
                 raise LiveError("券商当日委托记录可能被截断，请人工核对；没有提交委托。")
             if self._current(owner) is not client or time.monotonic() >= expires or self._readiness(order, read_market) != day:
