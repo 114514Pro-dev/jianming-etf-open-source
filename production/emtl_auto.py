@@ -8,7 +8,7 @@ import time
 
 from d0_order_math import LOT, MAX_ORDER_QTY, SYMBOLS, target_quantity
 from d0_order_preview import _market
-from emtl_live import CONFIRMATION, LiveError, SECURITIES, TERMINAL, _account, _rows
+from emtl_live import CONFIRMATION, LiveError, SECURITIES, TERMINAL, _rows
 from realtime_paper_engine import dt
 
 AUTO_CONFIRMATION = "确认自动委托"
@@ -48,6 +48,7 @@ class AutoOrders:
     def status(self):
         return {"enabled": self.enabled, "configured": bool(self.equity_field), "active": self.active,
                 "verified": bool(self.desk.verified_equity_field), "armed": self.desk.auto_armed,
+                "phase": ("reconciling" if self.pending else "executing") if self.active else "idle",
                 "strategy": self.plan.strategy if self.plan else None, "message": self.note,
                 "budget_cny": str(self.budget), "sent_cny": str(self.used)}
 
@@ -69,7 +70,7 @@ class AutoOrders:
             raise LiveError("当前没有该策略的有效执行信号或新鲜行情；不会发单。") from None
 
     def _account(self, client):
-        return _account(self.desk._query(client.query_asset_and_position), equity_field=self.equity_field)
+        return self.desk._read_account(client, equity_field=self.equity_field)
 
     @staticmethod
     def _held(account):
@@ -179,6 +180,8 @@ class AutoOrders:
         if len(orders) >= 100:
             raise LiveError("券商委托列表可能被截断；自动委托已停止。")
         if self.pending and not self._filled(orders, plan):
+            if time.monotonic() >= desk.next_account_check:
+                desk._read_account(client)
             return
         if any(str(r.get("Wtzt")) not in TERMINAL for r in orders):
             raise LiveError("检测到未结委托；自动委托已停止。")

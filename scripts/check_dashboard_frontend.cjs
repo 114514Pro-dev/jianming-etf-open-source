@@ -49,6 +49,10 @@ async function run() {
       const writes = [];
       let live = false;
       let connected = false;
+      let remoteDevice = false;
+      let accountReadFailed = false;
+      const accountSnapshot = {observed_at: new Date().toISOString(), available_cash_cny: '1200.50',
+        holdings: [{code: '511010', held: 100, sellable: 100}, {code: '600000', held: 300, sellable: 200}]};
       let accountBound = false;
       let liveActive = false;
       let ordersArmed = false;
@@ -99,10 +103,19 @@ async function run() {
           ordersArmed = liveActive = false;
           auto = {...auto, armed: true};
         }
-        const brokerActions = ['', '/connect', '/enroll', '/live', '/arm', '/stop', '/auto-verify', '/auto-arm'];
-        if (brokerActions.some(action => url.pathname === `${prefix}/broker${action}`))
+        if (url.pathname === `${prefix}/broker/takeover`) {
+          assert.equal(request.postDataJSON().confirmation, '确认接管只读连接');
+          remoteDevice = false;
+          liveActive = ordersArmed = false;
+          auto = {...auto, active: false, armed: false};
+        }
+        const brokerActions = ['', '/connect', '/enroll', '/live', '/arm', '/stop', '/auto-verify', '/auto-arm', '/takeover'];
+        if (brokerActions.some(action => url.pathname === `${prefix}/broker${action}`)) {
+          if (remoteDevice) return route.fulfill({json: {connected: false, account_bound: true, connection_scope: 'another_device',
+            monitor_auto: auto, account_snapshot: accountSnapshot, account_read_failed: accountReadFailed}});
           return route.fulfill({json: {connected, account_bound: accountBound, can_unbind: connected, account_tail: '1234',
-            limits, live_active: liveActive, orders_armed: ordersArmed, auto}});
+            limits, live_active: liveActive, orders_armed: ordersArmed, auto, account_snapshot: connected ? accountSnapshot : null}});
+        }
         if (url.pathname === `${prefix}/broker/auto-preview`) {
           const {strategy} = request.postDataJSON();
           auto = {...auto, strategy};
@@ -340,10 +353,32 @@ async function run() {
       await page.getByRole('button', {name: '授权并绑定唯一资金账号'}).click();
       await page.locator('#broker-session').waitFor();
       assert.equal(await page.locator('#broker-rebind-code').inputValue(), '');
+      remoteDevice = true;
+      auto = {...auto, active: true, strategy: 'F0', phase: 'reconciling'};
+      await page.locator('#refresh-signal').click();
+      await page.getByText(/其他设备已连接券商/).waitFor();
+      await page.getByText(/等待核对券商回执与成交/).waitFor();
+      await page.getByRole('table', {name: '券商实际持仓'}).getByText('国债 ETF 511010').waitFor();
+      assert.equal(await page.locator('#broker-holdings-rows tr').count(), 2);
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      assert.equal(await page.locator('#broker-connect').isVisible(), false);
+      accountReadFailed = true;
+      auto = {...auto, active: false, armed: false, message: '自动委托已停止'};
+      await page.getByText(/本次查询失败，以下是上次成功数据/).waitFor();
+      await page.locator('#broker-account').fill('000008765');
+      await page.locator('#broker-password').fill('synthetic-password');
+      await page.locator('#broker-takeover-phrase').fill('确认接管只读连接');
+      await page.getByRole('button', {name: '接管为本机只读连接'}).click();
+      await page.getByText(/本设备已连接券商/).waitFor();
+      assert.equal(await page.locator('#broker-order').isVisible(), false);
+      assert.equal(await page.locator('#broker-password').inputValue(), '');
+      assert.equal(writes.filter(([path]) => path.endsWith('/takeover')).length, 1);
       brokerState = 'connector_pairing_required';
       brokerNetwork = false;
       syncState = 'not_linked';
       await page.getByText('等待网络授权', {exact: true}).waitFor();
+      assert.equal(await page.locator('#broker-monitor').isVisible(), false);
+      assert.equal(await page.locator('#broker-holdings-rows tr').count(), 0);
       assert.equal(await page.locator('#broker-order').isVisible(), false);
       assert.equal(await noOverflow(), true, `broker overflow at ${width}`);
       await page.close();

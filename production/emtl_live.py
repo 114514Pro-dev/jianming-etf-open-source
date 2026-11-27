@@ -67,7 +67,7 @@ def _nonnegative(value):
     return number
 
 
-def _account(payload, *, equity_field=None):
+def _account(payload, *, equity_field=None, include_holdings=False):
     rows = _rows(payload)
     if len(rows) != 1 or not isinstance(rows[0].get("positions"), list):
         raise LiveError("券商资金持仓格式尚未核实；没有提交委托。")
@@ -84,6 +84,8 @@ def _account(payload, *, equity_field=None):
             raise LiveError("券商持仓数量异常或代码重复；没有提交委托。")
         positions[code] = {"held": int(held), "sellable": int(sellable)}
     account = {"available_cash": str(cash), "positions": {s: positions.get(code, {"held": 0, "sellable": 0}) for s, (code, _) in SECURITIES.items()}}
+    if include_holdings:
+        account["holdings"] = [{"code": code, **position} for code, position in sorted(positions.items()) if position["held"]]
     if equity_field:
         if any(p["held"] for code, p in positions.items() if code not in {v[0] for v in SECURITIES.values()}):
             raise LiveError("账户含有策略范围以外的持仓；不能自动调仓。")
@@ -142,6 +144,9 @@ class BrokerDesk:
         self.lock = threading.RLock()
         self.owner = self.client = self.draft = self.valid_session = None
         self.next_login = 0
+        self.account_snapshot = None
+        self.account_read_failed = False
+        self.next_account_check = 0
         from emtl_auto import AutoOrders
         self.auto = AutoOrders(self, enabled=auto_cap, equity_field=equity_field, budget=auto_budget)
         with closing(self._db()) as db, db:
@@ -238,7 +243,9 @@ class BrokerDesk:
         client = self.client
         self.owner = self.client = self.draft = self.session_tail = self.valid_session = None
         self.live_active = self.orders_armed = self.auto_armed = False
-        self.verification = None
+        self.verification = self.account_snapshot = None
+        self.account_read_failed = False
+        self.next_account_check = 0
         self.auto.stop("券商或网站会话结束。")
         self._close_client(client)
 
@@ -309,16 +316,81 @@ class BrokerDesk:
                                   read_timeout=10, captcha_read_timeout=8, captcha_max_attempts=2)
             if not client.login():
                 raise ValueError
-            account = _account(client.query_asset_and_position())
+            account = _account(client.query_asset_and_position(), include_holdings=True)
             _rows(client.query_orders())
             return client, account
         except Exception:
             self._close_client(client)
             raise LiveError("券商登录或只读核对失败；请核对密码、账户权限及响应格式。") from None
 
-    def _attach(self, owner, client, username, valid_session):
+    def _record_account(self, account):
+        self.account_snapshot = {"available_cash_cny": account["available_cash"], "holdings": account["holdings"],
+                                 "observed_at": dt(self.now()).isoformat()}
+        self.account_read_failed = False
+        self.next_account_check = time.monotonic() + 20
+
+    def _read_account(self, client, *, equity_field=None):
+        try:
+            payload = self._query(client.query_asset_and_position)
+            account = _account(payload, include_holdings=True)
+        except LiveError:
+            self.account_read_failed = True
+            self.next_account_check = time.monotonic() + 20
+            raise
+        self._record_account(account)
+        # An automation-specific parsing failure must not erase a successful holdings refresh.
+        if equity_field:
+            return _account(payload, equity_field=equity_field)
+        return account
+
+    def _attach(self, owner, client, username, valid_session, account):
         self.owner, self.client, self.session_tail = owner, client, username[-4:]
         self.valid_session = valid_session
+        self._record_account(account)
+
+    def take_over(self, owner, fields, *, valid_session, access):
+        if fields.get("confirmation") != "确认接管只读连接":
+            raise LiveError("请输入「确认接管只读连接」。")
+        username, password = fields.get("username"), fields.get("password")
+        tag = self._credential_tag(username, password)
+        with self.lock:
+            if not access() or not self.bound or not secrets.compare_digest(tag, self.account_tag):
+                raise LiveError("仅允许在已授权网页接管当前绑定的券商账户。")
+            self._current(owner)
+            if self.auto.active:
+                raise LiveError("另一设备的自动委托仍在运行；请在原设备停止后再接管。")
+            if not self.client or self.owner == owner:
+                raise LiveError("没有可接管的其他设备连接；请刷新状态。")
+            client, account = self._login(username, password)
+            if not access():
+                self._close_client(client)
+                raise LiveError("网页或网络授权已失效，未接管连接。")
+            self._drop()
+            self._attach(owner, client, username, valid_session, account)
+            return {**self.status(owner), **account}
+
+    def monitor(self, owner, access):
+        with self.lock:
+            if not access():
+                raise LiveError("当前设备的网页或网络授权已失效。")
+            self._current(owner)
+            if self.client and not self.auto.active and time.monotonic() >= self.next_account_check:
+                try:
+                    self._read_account(self.client)
+                except LiveError:
+                    # Keep the last successful result marked stale; do not authorize orders from it.
+                    self.orders_armed = False
+                    self.draft = None
+                    if self.auto_armed:
+                        self.auto.stop("券商查询未通过，已撤销自动实盘授权。")
+            if not access():
+                raise LiveError("当前设备的网页或网络授权已失效。")
+            status = self.status(owner)
+            if not self.client:
+                return {**status, "connection_scope": "none"}
+            return {**status, "connection_scope": "this_device" if self.owner == owner else "another_device",
+                    "account_read_failed": self.account_read_failed, "account_snapshot": self.account_snapshot,
+                    "monitor_auto": self.auto.status(), "monitor_manual": self.orders_armed and self.orders_cap}
 
     def _authenticate(self, owner, username, password, *, enrollment_code=None, valid_session=None):
         tag = self._credential_tag(username, password)
@@ -333,7 +405,7 @@ class BrokerDesk:
                 raise LiveError("无法连接：此资金账号未获准。")
             self._current(owner)
             if self.client:
-                raise LiveError("已有券商连接；请先断开，或等待原连接失效。")
+                raise LiveError("其他设备已有券商连接；请查看运行状态，或在自动任务停止后接管只读连接。")
             client, account = self._login(username, password)
             if enrollment_code is not None:
                 try:
@@ -355,7 +427,7 @@ class BrokerDesk:
                 self.account_tag = tag
                 self.enrollment_sha256 = None
                 self.rebind_pending = False
-            self._attach(owner, client, username, valid_session)
+            self._attach(owner, client, username, valid_session, account)
             return {**self.status(owner), **account}
 
     def enable_live(self, owner, fields):
@@ -392,7 +464,7 @@ class BrokerDesk:
             valid_session = self.valid_session
             self._drop()
             client, account = self._login(username, password)
-            self._attach(owner, client, username, valid_session)
+            self._attach(owner, client, username, valid_session, account)
             self.live_active = self.orders_armed = True
             return {**self.status(owner), **account}
 
@@ -411,7 +483,7 @@ class BrokerDesk:
             valid_session = self.valid_session
             self._drop()
             client, account = self._login(username, password)
-            self._attach(owner, client, username, valid_session)
+            self._attach(owner, client, username, valid_session, account)
             if not self._current(owner) or not access():
                 self._drop()
                 raise LiveError("网页或网络授权已失效，未授权自动实盘。")
@@ -560,6 +632,8 @@ class BrokerDesk:
             if self.auto_armed and not self.auto_arm_scope():
                 self.auto.stop("网络授权已失效，请重新配对并授权自动实盘。")
             return {"connected": True, "account_bound": True, "account_tail": self.session_tail, "limits": self._public_limits(),
+                    "connection_scope": "this_device", "account_snapshot": self.account_snapshot,
+                    "account_read_failed": self.account_read_failed,
                     "can_unbind": not self.managed_by_env, "live_active": self.live_active,
                     "orders_armed": self.orders_armed and self.orders_cap, "auto": self.auto.status()}
 
@@ -645,8 +719,7 @@ class BrokerDesk:
                 raise LiveError("委托确认已失效或确认文字不正确。")
             self.draft = None
             try:
-                account = _account(self._query(client.query_asset_and_position),
-                                   equity_field=self.auto.equity_field if automatic else None)
+                account = self._read_account(client, equity_field=self.auto.equity_field if automatic else None)
                 orders = _rows(self._query(client.query_orders))
             except LiveError:
                 # Broker tokens may expire before our timer. Never reuse a failed login for sending.

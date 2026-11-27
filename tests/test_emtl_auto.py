@@ -128,6 +128,21 @@ class AutoTests(unittest.TestCase):
         self.assertFalse(self.desk.auto.active)
         self.assertIn('结果不明', self.desk.auto.note)
 
+    def test_second_device_sees_execution_and_cannot_take_over_running_cycle(self):
+        self.start('F0')
+        state = self.desk.monitor('browser-two', lambda: True)
+        self.assertFalse(state['connected'])
+        self.assertEqual(state['monitor_auto']['strategy'], 'F0')
+        self.assertEqual(state['monitor_auto']['phase'], 'executing')
+        with self.assertRaisesRegex(LiveError, '仍在运行'):
+            self.desk.take_over('browser-two', {'username': self.account, 'password': 'test',
+                                                 'confirmation': '确认接管只读连接'},
+                                valid_session=lambda: True, access=lambda: True)
+        self.assertFalse(self.broker.sent)
+        self.tick()
+        self.assertEqual(self.desk.monitor('browser-two', lambda: True)['monitor_auto']['phase'], 'reconciling')
+        self.assertEqual(len(self.broker.sent), 1)
+
     def test_stopping_is_owner_only_and_blocks_the_first_send(self):
         self.start()
         self.desk.request_auto_stop('another-browser')

@@ -18,7 +18,11 @@
   let orderToken = null;
   let autoToken = null;
   let autoActive = false;
-  let autoTimer = null;
+  let monitorTimer = null;
+  let brokerRevision = 0;
+  let brokerWrites = 0;
+  let anotherDevice = false;
+  let shownLimits = '';
   let diagnosticsRequest = 0;
   let diagnosticsToken = null;
   let syncTimer = null;
@@ -141,8 +145,8 @@
       byId('inputs').disabled = !marketReady;
       setAvailability(status.broker_state, status.broker_orders_configured === true, status.account_bound === true);
       if (brokerAvailable) {
-        try { setBroker(await call('/api/d0-control/broker')); }
-        catch { setAvailability('unavailable'); }
+        await readBroker();
+        queueBrokerRead(autoActive || anotherDevice ? 4000 : 8000);
       }
       return marketReady;
     } catch (error) {
@@ -157,6 +161,7 @@
   }
 
   function setAvailability(state, orders = false, bound = false) {
+    clearTimeout(monitorTimer);
     brokerAvailable = state === 'available';
     ordersConfigured = brokerAvailable && orders;
     accountBound = brokerAvailable && bound;
@@ -176,13 +181,46 @@
     if (!brokerAvailable) {
       clearRebindCode();
       byId('broker-password').value = '';
+      byId('broker-connect-result').textContent = '';
       setBroker({connected: false});
     }
   }
 
-  function brokerCall(action, payload) {
-    return call(`/api/d0-control/broker/${action}`, {method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify(payload)});
+  async function readBroker() {
+    if (!brokerAvailable || brokerWrites) return;
+    const revision = ++brokerRevision;
+    try {
+      const state = await call('/api/d0-control/broker');
+      if (revision === brokerRevision && brokerAvailable) setBroker(state);
+    } catch (error) {
+      if (revision !== brokerRevision || !brokerAvailable) return;
+      if (!byId('workspace').hidden) {
+        setBroker({connected: false, monitor_failed: true});
+        byId('broker-status').textContent = `连接状态待核实：${error.message}`;
+      } else setAvailability('unavailable');
+    }
+  }
+
+  function queueBrokerRead(delay) {
+    clearTimeout(monitorTimer);
+    if (!brokerAvailable || document.hidden) return;
+    monitorTimer = setTimeout(async () => {
+      if (document.hidden) return;
+      await readBroker();
+      queueBrokerRead(autoActive || anotherDevice ? 4000 : 8000);
+    }, delay);
+  }
+  byId('broker-monitor-refresh').addEventListener('click', () => queueBrokerRead(0));
+  document.addEventListener('visibilitychange', () => queueBrokerRead(0));
+  window.addEventListener('pagehide', () => clearTimeout(monitorTimer));
+
+  async function brokerCall(action, payload) {
+    ++brokerRevision;
+    ++brokerWrites;
+    try {
+      return await call(`/api/d0-control/broker/${action}`, {method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf}, body: JSON.stringify(payload)});
+    } finally { --brokerWrites; }
   }
 
   function clearDraft() {
@@ -199,16 +237,20 @@
   }
 
   function setBroker(state) {
+    ++brokerRevision;
+    anotherDevice = brokerAvailable && state.connection_scope === 'another_device';
     brokerConnected = brokerAvailable && state.connected === true;
+    const remoteRunning = anotherDevice && state.monitor_auto?.active === true;
     const liveActive = brokerConnected && state.live_active === true;
     liveOrders = ordersConfigured && liveActive && state.orders_armed === true;
     autoActive = brokerConnected && state.auto?.active === true;
     const badge = byId('broker-badge');
     const autoArmed = brokerConnected && state.auto?.armed === true;
     const mode = autoActive ? `${state.auto.strategy} 自动实盘运行中` : autoArmed ? '自动实盘已授权 · 未启动' : '手动实盘';
-    if (brokerAvailable) badge.textContent = liveOrders || autoArmed ? mode : !accountBound ? '待首次授权' : '网页仅只读核对';
-    badge.className = `pill ${liveOrders || autoArmed ? 'danger' : 'neutral'}`;
-    byId('trading-mode').textContent = autoArmed ? mode : liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
+    if (brokerAvailable) badge.textContent = state.monitor_failed ? '状态待核实' : anotherDevice ? '其他设备已连接' : liveOrders || autoArmed ? mode : !accountBound ? '待首次授权' : '网页仅只读核对';
+    badge.className = `pill ${liveOrders || autoArmed || remoteRunning ? 'danger' : 'neutral'}`;
+    byId('trading-mode').textContent = remoteRunning ? '其他设备的自动实盘运行中' : anotherDevice ? '本设备仅查看，不能发单'
+      : autoArmed ? mode : liveOrders ? '手动实盘已启用 · 不自动下单' : '不发送真实委托';
     byId('broker-order').hidden = !liveOrders || autoActive;
     if (autoActive) clearDraft();
     byId('broker-diagnostics-panel').hidden = autoActive;
@@ -221,11 +263,17 @@
       : !liveActive ? '默认只读。开启实盘不会下单。'
       : ordersConfigured ? '实盘已开启，仍未授权真实委托。' : '实盘已开启，此部署尚未开放真实委托权限。';
     if (!liveOrders) clearDraft();
-    byId('broker-connect').hidden = !brokerAvailable || brokerConnected;
-    const enrolling = brokerAvailable && !accountBound && !brokerConnected;
+    const allowTakeover = anotherDevice && !remoteRunning;
+    const phrase = byId('broker-takeover-phrase');
+    byId('broker-takeover').hidden = !allowTakeover;
+    phrase.required = allowTakeover;
+    phrase.disabled = !allowTakeover;
+    if (!allowTakeover) phrase.value = '';
+    byId('broker-connect').hidden = !brokerAvailable || brokerConnected || remoteRunning || state.monitor_failed === true;
+    const enrolling = brokerAvailable && !accountBound && !brokerConnected && !anotherDevice;
     byId('broker-enrollment').hidden = !enrolling;
     byId('broker-enrollment').disabled = !enrolling;
-    byId('broker-connect-submit').textContent = enrolling ? '授权并绑定唯一资金账号' : '登录东方财富证券';
+    byId('broker-connect-submit').textContent = enrolling ? '授权并绑定唯一资金账号' : allowTakeover ? '接管为本机只读连接' : '登录东方财富证券';
     byId('broker-session').hidden = !brokerConnected;
     const unbind = byId('broker-unbind-panel');
     unbind.hidden = !brokerConnected || state.can_unbind !== true;
@@ -237,14 +285,15 @@
     if (accountBound) clearRebindCode();
     byId('broker-order-fields').disabled = !liveOrders || !brokerConnected || !marketReady || autoActive;
     byId('broker-settings').hidden = !brokerConnected || !state.limits;
-    if (state.limits) showLimits(state.limits);
-    const holdings = byId('broker-holdings');
-    if (brokerConnected && state.positions) {
-      holdings.textContent = '登录时持有／可卖：' + symbols.map(s => `${names[s]} ${state.positions[s].held}／${state.positions[s].sellable} 份`).join(' · ');
-      holdings.hidden = false;
-    }
-    const cash = state.available_cash == null ? '' : ` · 登录时可用 ${yuan.format(Number(state.available_cash))}`;
-    byId('broker-status').textContent = brokerConnected ? `已连接 · 尾号 ${state.account_tail}${cash}` : '尚未连接。';
+    const limits = state.limits ? `${state.limits.single_cny}/${state.limits.daily_cny}` : '';
+    if (limits && limits !== shownLimits) showLimits(state.limits);
+    shownLimits = limits;
+    const location = anotherDevice ? '其他设备' : '本设备';
+    byId('broker-status').textContent = !brokerConnected && !anotherDevice ? '当前没有券商连接。'
+      : state.account_read_failed ? `${location}保留券商会话，但最新查询失败；连接待核实。`
+      : anotherDevice ? '其他设备已连接券商 · 本设备只能查看。' : `本设备已连接券商 · 尾号 ${state.account_tail}。`;
+    renderMonitor(state);
+    queueBrokerRead(autoActive || anotherDevice ? 4000 : 8000);
     if (!brokerConnected) {
       clearDiagnostics();
       clearDraft();
@@ -252,11 +301,43 @@
       byId('broker-arm-account').value = '';
       byId('broker-arm-password').value = '';
       byId('broker-control-result').textContent = '';
-      holdings.textContent = '';
-      holdings.hidden = true;
       byId('broker-settings').open = false;
       byId('broker-limit-result').textContent = '';
     }
+  }
+
+  function renderMonitor(state) {
+    const panel = byId('broker-monitor');
+    const holdings = byId('broker-holdings');
+    const table = byId('broker-holdings-table');
+    const rows = byId('broker-holdings-rows');
+    const run = byId('broker-monitor-run');
+    const note = byId('broker-monitor-note');
+    const show = brokerConnected || anotherDevice;
+    panel.hidden = !show;
+    table.hidden = true;
+    rows.replaceChildren();
+    run.textContent = note.textContent = holdings.textContent = '';
+    if (!show) return;
+    const auto = state.monitor_auto || state.auto;
+    const manual = state.monitor_manual ?? liveOrders;
+    run.textContent = auto?.active ? `${auto.strategy} 自动实盘运行中 · ${auto.phase === 'reconciling' ? '等待核对券商回执与成交' : '检查信号及执行条件'}`
+      : auto?.armed ? '自动实盘已授权 · 尚未启动' : manual ? '手动委托已授权 · 自动任务未运行' : '自动任务未运行 · 当前只读';
+    note.textContent = [auto?.message, anotherDevice ? (auto?.active ? '请在原设备停止自动委托，再接管。' : '接管后原设备仅能查看，发单权限须在本设备重新授权。') : '此处显示券商实际持仓，不是策略目标。'].filter(Boolean).join(' ');
+    const snapshot = state.account_snapshot;
+    if (!snapshot) { holdings.textContent = '尚无已核实持仓。'; return; }
+    const observed = new Date(snapshot.observed_at);
+    const timestamp = Number.isFinite(+observed) ? `查询时间：${clock.format(observed)}（北京时间）。` : '';
+    const stale = state.account_read_failed ? '本次查询失败，以下是上次成功数据。' : Number.isFinite(+observed) && Date.now() - +observed > 45000 ? '以下数据尚未更新。' : '';
+    holdings.textContent = `${stale}${timestamp} 可用资金：${yuan.format(Number(snapshot.available_cash_cny))}。${snapshot.holdings.length ? '' : '券商返回无持仓。'}`;
+    for (const item of snapshot.holdings) {
+      const row = rows.insertRow();
+      const known = symbols.find(symbol => symbol.slice(2) === item.code);
+      row.insertCell().textContent = known ? `${names[known]} ${item.code}` : item.code;
+      row.insertCell().textContent = String(item.held);
+      row.insertCell().textContent = String(item.sellable);
+    }
+    table.hidden = !snapshot.holdings.length;
   }
 
   function clearDiagnostics() {
@@ -356,7 +437,6 @@
   }
 
   function setAuto(state) {
-    clearTimeout(autoTimer);
     const configured = brokerConnected && state?.configured === true;
     byId('broker-auto-preview').hidden = !configured || autoActive;
     byId('broker-auto-stop').hidden = !(autoActive || state?.armed);
@@ -367,10 +447,6 @@
       : !state.armed && !autoActive ? '字段已核对；自动实盘未授权。'
       : `${state.strategy ? `${state.strategy} · ` : ''}${state.message} 周期上限 ¥${state.budget_cny}。`;
     if (!brokerConnected || autoActive) clearAutoPlan(!brokerConnected);
-    if (autoActive) autoTimer = setTimeout(async () => {
-      try { setBroker(await call('/api/d0-control/broker')); }
-      catch { setAvailability('unavailable'); }
-    }, 2500);
   }
 
   byId('broker-auto-strategy').addEventListener('change', () => clearAutoPlan());
@@ -442,7 +518,12 @@
     const password = byId('broker-password');
     const payload = {username: byId('broker-account').value.trim(), password: password.value};
     password.value = '';
-    const enroll = !accountBound;
+    const takeOver = anotherDevice;
+    const enroll = !takeOver && !accountBound;
+    if (takeOver) {
+      payload.confirmation = byId('broker-takeover-phrase').value.trim();
+      byId('broker-takeover-phrase').value = '';
+    }
     if (enroll) {
       const code = byId('broker-enrollment-code');
       const confirmation = byId('broker-enrollment-confirm');
@@ -451,13 +532,19 @@
       code.value = '';
       confirmation.value = '';
     }
-    byId('broker-status').textContent = '正在登录并只读核对…';
+    const result = byId('broker-connect-result');
+    result.textContent = '正在登录并只读核对…';
     try {
-      const state = await brokerCall(enroll ? 'enroll' : 'connect', payload);
+      const state = await brokerCall(takeOver ? 'takeover' : enroll ? 'enroll' : 'connect', payload);
       if (enroll && state.connected === true && state.account_bound === true) setAvailability('available', ordersConfigured, true);
+      byId('broker-account').value = '';
+      result.textContent = '';
       setBroker(state);
     }
-    catch (error) { byId('broker-status').textContent = error.message; }
+    catch (error) {
+      result.textContent = error.message;
+      await readBroker();
+    }
     finally { submit.disabled = false; }
   });
 
