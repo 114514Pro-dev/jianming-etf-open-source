@@ -36,6 +36,10 @@ $env:ETF_SECTOR_RESEARCH_AUTO_UPDATE = '0'
 
 如需微信提醒，可通过 `PUSHPLUS_TOKEN` 或 `PUSHPLUS_TOKEN_FILE` 提供自己的推送加令牌，然后在登录后的模拟账户页面发送测试消息并选择订阅。
 
+## 阿里云私有部署
+
+Ubuntu 24.04 上的首次安装、systemd 服务、SSH 私有访问及验收见[部署交接手册](docs/aliyun-deployment-handoff.md)。
+
 ## D0 EMTL 拟单与只读检查
 
 [`scripts/emtl_d0.py`](scripts/emtl_d0.py) 可以读取现有 D0 模拟盘信号生成拟单，也可以单独通过 EMTL 只读检查账户连接；这两种模式都不会提交真实委托。见[使用与验收说明](docs/emtl-d0-preview.md)。私有实例也可按[网页控制台说明](docs/d0-web-control.md)开启仅拟单的网页。
