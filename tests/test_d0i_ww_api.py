@@ -222,6 +222,9 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
         desk = Mock()
         desk.bound = False
         desk.status.return_value = {'connected': False, 'account_bound': False}
+        desk.monitor.side_effect = lambda owner, access: {**desk.status.return_value, 'scope_ok': access()}
+        desk.take_over.side_effect = lambda owner, fields, *, valid_session, access: {
+            'connected': True, 'connection_scope': 'this_device', 'scope_ok': valid_session() and access()}
         prefix = '/api/d0-control'
         # Synthetic ASGI peers; no requests to these addresses.
         peer, other_peer, proxy = '8.8.8.8', '1.1.1.1', '172.18.0.2'
@@ -260,6 +263,17 @@ class ScopedApiTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await broker(), 200)
                 self.assertEqual(await broker(other_peer), 403)
                 self.assertEqual(await broker(peer, another_session), 403)
+                await pair(other_peer, proxy, another_session, forwarded_for=other_peer)
+                status, headers, data = await request(app, prefix + '/broker', peer=other_peer, **another_session)
+                self.assertEqual((status, headers.get('cache-control'), data['scope_ok']), (200, 'no-store', True))
+                self.assertEqual(await broker(peer, another_session), 403)
+                take_over = prefix + '/broker/takeover'
+                fields = {'username': '000001234', 'password': 'synthetic', 'confirmation': '确认接管只读连接'}
+                self.assertEqual((await request(app, take_over, method='POST', data=fields, peer=peer, origin=site, **another_session))[0], 403)
+                self.assertEqual((await request(app, take_over, method='POST', data=fields, peer=other_peer, origin='https://other.test', **another_session))[0], 403)
+                desk.take_over.assert_not_called()
+                status, headers, data = await request(app, take_over, method='POST', data=fields, peer=other_peer, origin=site, **another_session)
+                self.assertEqual((status, headers.get('cache-control'), data['scope_ok']), (200, 'no-store', True))
                 _, _, sync_state = await request(app, prefix + '/sync/status', peer=peer, **session)
                 self.assertTrue(sync_state['broker_network_authorized'])
                 self.assertNotIn(peer, json.dumps(sync_state))

@@ -2146,10 +2146,16 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
         @app.get("/api/d0-control/broker")
         async def broker_status(request: Request):
             desk, owner = broker_access(request)
-            status = await asyncio.to_thread(desk.status, owner)
+            from emtl_live import LiveError
+
+            _, access = broker_scopes(request, owner)
+            try:
+                status = await asyncio.to_thread(desk.monitor, owner, access)
+            except LiveError as exc:
+                raise HTTPException(403, str(exc)) from None
             status["auto_strategies"] = [code for code in ("D0", "F0") if callable(
                 getattr(app.state.paper_services.get(code), "execution_input", None))]
-            return status
+            return JSONResponse(status, headers={"Cache-Control": "no-store"})
 
         @app.post("/api/d0-control/broker/{action}")
         async def broker_action(request: Request, action: str):
@@ -2157,6 +2163,7 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
 
             desk, owner = broker_access(request)
             keys = {"connect": {"username", "password"}, "disconnect": set(),
+                    "takeover": {"username", "password", "confirmation"},
                     "enroll": {"username", "password", "enrollment_code", "confirmation"}, "unbind": {"confirmation"},
                     "live": {"confirmation"}, "arm": {"username", "password", "confirmation"}, "stop": set(),
                     "auto-preview": {"strategy"}, "auto-start": {"token", "confirmation"}, "auto-stop": set(),
@@ -2186,6 +2193,9 @@ def create_app(folder=None, *, paper_factory=None, ww_paper_factory=None, wechat
                     return await asyncio.to_thread(desk.connect, owner, payload["username"], payload["password"], valid_session=valid_session)
                 if action == "enroll":
                     return await asyncio.to_thread(desk.enroll, owner, payload, valid_session=valid_session)
+                if action == "takeover":
+                    data = await asyncio.to_thread(desk.take_over, owner, payload, valid_session=valid_session, access=send_allowed)
+                    return JSONResponse(data, headers={"Cache-Control": "no-store"})
                 if action.startswith("auto-"):
                     def auto_action():
                         with desk.lock:

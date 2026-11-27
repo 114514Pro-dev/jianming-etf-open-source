@@ -73,12 +73,26 @@
             <label>证券资金账号<input id="broker-account" inputmode="numeric" maxlength="20" required autocomplete="off"></label>
             <label>证券交易密码<input id="broker-password" type="password" maxlength="128" required autocomplete="new-password"></label>
           </div>
+          <label id="broker-takeover" hidden>输入「确认接管只读连接」<input id="broker-takeover-phrase" maxlength="12" disabled autocomplete="off"></label>
           <button id="broker-connect-submit" type="submit" class="button primary">登录东方财富证券</button>
+          <output id="broker-connect-result" aria-live="polite"></output>
         </form>
         <output id="broker-status" aria-live="polite" hidden>尚未连接。</output>
+        <section id="broker-monitor" class="connector-sync" aria-labelledby="broker-monitor-title" hidden>
+          <div class="button-row">
+            <h3 id="broker-monitor-title">运行状态与券商持仓</h3>
+            <button id="broker-monitor-refresh" type="button" class="text-button">刷新券商状态</button>
+          </div>
+          <p id="broker-monitor-run" class="small"></p>
+          <p id="broker-monitor-note" class="small muted"></p>
+          <p id="broker-holdings" class="small muted"></p>
+          <div class="control-scroll" id="broker-holdings-table" hidden>
+            <table class="control-table" aria-label="券商实际持仓"><thead><tr><th scope="col">证券</th><th scope="col">持有份额</th><th scope="col">可卖份额</th></tr></thead>
+              <tbody id="broker-holdings-rows"></tbody></table>
+          </div>
+        </section>
         <div id="broker-session" hidden>
           <button id="broker-disconnect" type="button" class="button secondary">断开连接</button>
-          <p id="broker-holdings" class="small muted" hidden></p>
           <section id="broker-controls" class="connector-sync" aria-labelledby="broker-controls-title">
             <h3 id="broker-controls-title">实盘权限</h3>
             <p id="broker-control-state" class="small muted">当前只读。</p>

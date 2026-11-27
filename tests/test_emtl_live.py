@@ -72,6 +72,57 @@ class ManualEmtlTests(unittest.TestCase):
     def submit(self, draft, owner='browser-one', confirm=CONFIRMATION):
         return self.desk.submit(owner, {'order_token': draft['order_token'], 'confirmation': confirm}, lambda: self.snapshot)
 
+    def test_other_authorized_device_observes_but_cannot_send_before_takeover(self):
+        with self.assertRaisesRegex(LiveError, '授权已失效'):
+            self.desk.monitor('browser-two', lambda: False)
+        info = self.desk.monitor('browser-two', lambda: True)
+        self.assertFalse(info['connected'])
+        self.assertTrue(info['monitor_manual'])
+        self.assertEqual(info['connection_scope'], 'another_device')
+        self.assertNotIn('account_tail', info)
+        self.assertEqual(info['account_snapshot']['holdings'], [{'code': '512800', 'held': 100, 'sellable': 100}])
+        old_draft = self.draft()
+        with self.assertRaises(LiveError):
+            self.submit(old_draft, owner='browser-two')
+        old_broker = self.broker
+        self.broker = Broker()
+        self.desk.factory = lambda **_: self.broker
+        self.desk.next_login = 0
+        payload = {'username': '000001234', 'password': 'test', 'confirmation': '确认接管只读连接'}
+        with self.assertRaises(LiveError):
+            self.desk.take_over('browser-two', payload, valid_session=lambda: True, access=lambda: False)
+        self.assertTrue(self.desk.status('browser-one')['orders_armed'])
+        info = self.desk.take_over('browser-two', payload, valid_session=lambda: True, access=lambda: True)
+        self.assertTrue(info['connected'])
+        self.assertFalse(info['orders_armed'])
+        self.assertFalse(info['auto']['armed'])
+        self.assertTrue(old_broker.closed)
+        self.assertFalse(self.desk.monitor('browser-one', lambda: True)['connected'])
+        with self.assertRaises(LiveError):
+            self.submit(old_draft)
+        self.assertFalse(old_broker.sent + self.broker.sent)
+
+    def test_monitor_refreshes_all_holdings_and_marks_failed_reads(self):
+        other = 'browser-two'
+        response = self.broker.query_asset_and_position()
+        response['Data'][0]['positions'].append({'Zqdm': '600000', 'Zqsl': '200', 'Kysl': '100', 'sensitive': 'private'})
+        self.broker.query_asset_and_position = lambda: response
+        self.desk.next_account_check = 0
+        self.now += timedelta(seconds=21)
+        refreshed = self.desk.monitor(other, lambda: True)
+        self.assertEqual(refreshed['account_snapshot']['holdings'][-1], {'code': '600000', 'held': 200, 'sellable': 100})
+        self.assertEqual(refreshed['account_snapshot']['observed_at'], self.now.isoformat())
+        self.assertNotIn('private', str(refreshed))
+        self.broker.query_asset_and_position = lambda: {'Status': -1}
+        self.desk.next_account_check = 0
+        failed = self.desk.monitor(other, lambda: True)
+        self.assertTrue(failed['account_read_failed'])
+        self.assertEqual(failed['account_snapshot'], refreshed['account_snapshot'])
+        self.assertFalse(self.desk.status('browser-one')['orders_armed'])
+        self.assertFalse(self.broker.sent)
+        self.desk.disconnect('browser-one')
+        self.assertNotIn('account_snapshot', self.desk.monitor(other, lambda: True))
+
     def test_requires_explicit_confirmation_and_scope_then_sends_once(self):
         draft = self.draft()
         for owner, confirm in (('other', CONFIRMATION), ('browser-one', 'OK')):
